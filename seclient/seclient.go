@@ -42,7 +42,6 @@ var DefaultSEEndpoints = SEEndpoints{
 type SESettings struct {
 	ClientVersion   string
 	ClientType      string
-	DeviceHash      string
 	DeviceName      string
 	OperatingSystem string
 	UserAgent       string
@@ -54,7 +53,6 @@ var DefaultSESettings = SESettings{
 	ClientType:      "se0316",
 	UserAgent:       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.192 Safari/537.36 OPR/74.0.3911.232",
 	DeviceName:      "Opera-Browser-Client",
-	DeviceHash:      "",
 	OperatingSystem: "Windows",
 	Endpoints:       DefaultSEEndpoints,
 }
@@ -66,7 +64,7 @@ type SEClient struct {
 	SubscriberPassword   string
 	DeviceID             string
 	AssignedDeviceID     string
-	AssignedDevideIDHash string
+	AssignedDeviceIDHash string
 	DevicePassword       string
 	rng                  *rand.Rand
 }
@@ -144,6 +142,10 @@ func (c *SEClient) Register(ctx context.Context) error {
 		return err
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("bad http status: %s", resp.Status)
+	}
+
 	decoder := json.NewDecoder(resp.Body)
 	var regRes SERegisterSubscriberResponse
 	err = decoder.Decode(&regRes)
@@ -159,10 +161,58 @@ func (c *SEClient) Register(ctx context.Context) error {
 	return nil
 }
 
+func (c *SEClient) RegisterDevice(ctx context.Context) error {
+	registerDeviceInput := url.Values{
+		"client_type": {c.Settings.ClientType},
+		"device_hash": {c.DeviceID},
+		"device_name": {c.Settings.DeviceName},
+	}
+	req, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		c.Settings.Endpoints.RegisterDevice,
+		strings.NewReader(registerDeviceInput.Encode()),
+	)
+	if err != nil {
+		return err
+	}
+	c.populateRequest(req)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.HttpClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("bad http status: %s", resp.Status)
+	}
+
+	decoder := json.NewDecoder(resp.Body)
+	var regRes SERegisterDeviceResponse
+	err = decoder.Decode(&regRes)
+	cleanupBody(resp.Body)
+
+	if err != nil {
+		return err
+	}
+
+	if regRes.Status.Code != SE_STATUS_OK {
+		return fmt.Errorf("API responded with error message: code=%d, msg=\"%s\"",
+			regRes.Status.Code, regRes.Status.Message)
+	}
+
+	c.AssignedDeviceID = regRes.Data.DeviceID
+	c.DevicePassword = regRes.Data.DevicePassword
+	c.AssignedDeviceIDHash = capitalHexSHA1(regRes.Data.DeviceID)
+	return nil
+}
+
 func (c *SEClient) populateRequest(req *http.Request) {
-	req.Header.Set("SE-Client-Version", c.Settings.ClientVersion)
-	req.Header.Set("SE-Operating-System", c.Settings.OperatingSystem)
-	req.Header.Set("User-Agent", c.Settings.UserAgent)
+	req.Header["SE-Client-Version"] = []string{c.Settings.ClientVersion}
+	req.Header["SE-Operating-System"] = []string{c.Settings.OperatingSystem}
+	req.Header["User-Agent"] = []string{c.Settings.UserAgent}
 }
 
 // Does cleanup of HTTP response in order to make it reusable by keep-alive

@@ -48,3 +48,14 @@ type SERegisterSubscriberResponse struct {
 	Data   interface{}  `json:"data"`
 	Status SEStatusPair `json:"return_code"`
 }
+
+type SERegisterDeviceData struct {
+	ClientType     string `json:"client_type"`
+	DeviceID       string `json:"device_id"`
+	DevicePassword string `json:"device_password"`
+}
+
+type SERegisterDeviceResponse struct {
+	Data   SERegisterDeviceData `json:"data"`
+	Status SEStatusPair         `json:"return_code"`
+}
