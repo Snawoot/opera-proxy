@@ -2,7 +2,10 @@ package seclient
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
@@ -14,9 +17,10 @@ import (
 )
 
 const (
-	ANON_EMAIL_LOCALPART_BYTES = 32
-	ANON_PASSWORD_BYTES        = 20
-	DEVICE_ID_BYTES            = 20
+	ANON_EMAIL_LOCALPART_BYTES       = 32
+	ANON_PASSWORD_BYTES              = 20
+	DEVICE_ID_BYTES                  = 20
+	READ_LIMIT                 int64 = 128 * 1024
 )
 
 type SEEndpoints struct {
@@ -135,8 +139,23 @@ func (c *SEClient) Register(ctx context.Context) error {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
 
-	_, err = c.HttpClient.Do(req)
-	// TODO: handle response
+	resp, err := c.HttpClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	decoder := json.NewDecoder(resp.Body)
+	var regRes SERegisterSubscriberResponse
+	err = decoder.Decode(&regRes)
+	cleanupBody(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if regRes.Status.Code != SE_STATUS_OK {
+		return fmt.Errorf("API responded with error message: code=%d, msg=\"%s\"",
+			regRes.Status.Code, regRes.Status.Message)
+	}
 	return nil
 }
 
@@ -144,4 +163,14 @@ func (c *SEClient) populateRequest(req *http.Request) {
 	req.Header.Set("SE-Client-Version", c.Settings.ClientVersion)
 	req.Header.Set("SE-Operating-System", c.Settings.OperatingSystem)
 	req.Header.Set("User-Agent", c.Settings.UserAgent)
+}
+
+// Does cleanup of HTTP response in order to make it reusable by keep-alive
+// logic of HTTP client
+func cleanupBody(body io.ReadCloser) {
+	io.Copy(io.Discard, io.LimitedReader{
+		R: resp.Body,
+		N: READ_LIMIT,
+	})
+	body.Close()
 }

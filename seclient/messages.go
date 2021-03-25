@@ -6,9 +6,13 @@ import (
 	"strconv"
 )
 
+const (
+	SE_STATUS_OK int64 = 0
+)
+
 type SEStatusPair struct {
-	StatusCode int64
-	Status     string
+	Code    int64
+	Message string
 }
 
 func (p *SEStatusPair) UnmarshalJSON(b []byte) error {
@@ -34,8 +38,13 @@ func (p *SEStatusPair) UnmarshalJSON(b []byte) error {
 	}
 
 	*p = SEStatusPair{
-		StatusCode: code,
-		Status: strStatus,
+		Code:    code,
+		Message: strStatus,
 	}
 	return nil
+}
+
+type SERegisterSubscriberResponse struct {
+	Data   interface{}  `json:"data"`
+	Status SEStatusPair `json:"return_code"`
 }

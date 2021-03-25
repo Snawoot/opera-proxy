@@ -1,9 +1,9 @@
 package seclient
 
 import (
-	"io"
 	"encoding/base64"
 	"encoding/hex"
+	"io"
 	"strings"
 )
 
