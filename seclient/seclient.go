@@ -168,8 +168,8 @@ func (c *SEClient) populateRequest(req *http.Request) {
 // Does cleanup of HTTP response in order to make it reusable by keep-alive
 // logic of HTTP client
 func cleanupBody(body io.ReadCloser) {
-	io.Copy(io.Discard, io.LimitedReader{
-		R: resp.Body,
+	io.Copy(ioutil.Discard, &io.LimitedReader{
+		R: body,
 		N: READ_LIMIT,
 	})
 	body.Close()
