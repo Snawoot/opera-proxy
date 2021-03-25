@@ -1,0 +1,9 @@
+github.com/Snawoot/go-http-digest-auth-client v1.0.0 h1:1xNR4muFtT+PjP1Z2QAZG0fooszF8nWuYv6QlTKgi1E=
+github.com/Snawoot/go-http-digest-auth-client v1.0.0/go.mod h1:WiwNiPXTRGyjTGpBtSQJlM2wDPRRPpFGhMkMWpV4uqg=
+golang.org/x/net v0.0.0-20210324205630-d1beb07c2056 h1:sANdAef76Ioam9aQUUdcAqricwY/WUaMc4+7LY4eGg8=
+golang.org/x/net v0.0.0-20210324205630-d1beb07c2056/go.mod h1:uSPa2vr4CLtc/ILN5odXGNXS6mhrKVzTaCXzk9m6W3k=
+golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20210324051608-47abb6519492/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
+golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
