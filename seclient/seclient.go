@@ -1,12 +1,13 @@
 package seclient
 
 import (
-	"encoding/hex"
-	"io"
+	"context"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
-	"time"
+	"net/url"
+	"strings"
 
 	dac "github.com/Snawoot/go-http-digest-auth-client"
 	"golang.org/x/net/publicsuffix"
@@ -40,12 +41,14 @@ type SESettings struct {
 	DeviceHash      string
 	DeviceName      string
 	OperatingSystem string
+	UserAgent       string
 	Endpoints       SEEndpoints
 }
 
 var DefaultSESettings = SESettings{
 	ClientVersion:   "Stable 74.0.3911.232",
 	ClientType:      "se0316",
+	UserAgent:       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.192 Safari/537.36 OPR/74.0.3911.232",
 	DeviceName:      "Opera-Browser-Client",
 	DeviceHash:      "",
 	OperatingSystem: "Windows",
@@ -79,7 +82,7 @@ func NewSEClient(apiUsername, apiSecret string, transport http.RoundTripper) (*S
 		return nil, err
 	}
 
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng := rand.New(RandomSource)
 
 	device_id, err := randomCapitalHexString(rng, DEVICE_ID_BYTES)
 	if err != nil {
@@ -97,11 +100,48 @@ func NewSEClient(apiUsername, apiSecret string, transport http.RoundTripper) (*S
 	}, nil
 }
 
-func randomCapitalHexString(rng io.Reader, length int) (string, error) {
-	b := make([]byte, length)
-	_, err := rng.Read(b)
+func (c *SEClient) AnonRegister(ctx context.Context) error {
+	localPart, err := randomEmailLocalPart(c.rng)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return hex.EncodeToString(b), nil
+
+	c.SubscriberEmail = fmt.Sprintf("%s@%s.best.vpn", localPart, c.Settings.ClientType)
+
+	password, err := randomCapitalHexString(c.rng, ANON_PASSWORD_BYTES)
+	if err != nil {
+		return err
+	}
+	c.SubscriberPassword = password
+
+	return c.Register(ctx)
+}
+
+func (c *SEClient) Register(ctx context.Context) error {
+	registerInput := url.Values{
+		"email":    {c.SubscriberEmail},
+		"password": {c.SubscriberPassword},
+	}
+	req, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		c.Settings.Endpoints.RegisterSubscriber,
+		strings.NewReader(registerInput.Encode()),
+	)
+	if err != nil {
+		return err
+	}
+	c.populateRequest(req)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	_, err = c.HttpClient.Do(req)
+	// TODO: handle response
+	return nil
+}
+
+func (c *SEClient) populateRequest(req *http.Request) {
+	req.Header.Set("SE-Client-Version", c.Settings.ClientVersion)
+	req.Header.Set("SE-Operating-System", c.Settings.OperatingSystem)
+	req.Header.Set("User-Agent", c.Settings.UserAgent)
 }
