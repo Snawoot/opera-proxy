@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/csv"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -12,6 +14,8 @@ import (
 	"time"
 
 	xproxy "golang.org/x/net/proxy"
+
+	se "github.com/Snawoot/opera-proxy/seclient"
 )
 
 var (
@@ -32,20 +36,24 @@ func arg_fail(msg string) {
 
 type CLIArgs struct {
 	country      string
-	bind_address string
+	listCountries bool
+	listProxies bool
+	bindAddress string
 	verbosity    int
 	timeout      time.Duration
 	resolver     string
 	showVersion  bool
 	proxy        string
+	apiLogin     string
+	apiPassword  string
 }
 
 func parse_args() CLIArgs {
 	var args CLIArgs
 	flag.StringVar(&args.country, "country", "EU", "desired proxy location")
-	flag.BoolVar(&args.list_countries, "list-countries", false, "list available countries and exit")
-	flag.BoolVar(&args.list_proxies, "list-proxies", false, "output proxy list and exit")
-	flag.StringVar(&args.bind_address, "bind-address", "127.0.0.1:8080", "HTTP proxy listen address")
+	flag.BoolVar(&args.listCountries, "list-countries", false, "list available countries and exit")
+	flag.BoolVar(&args.listProxies, "list-proxies", false, "output proxy list and exit")
+	flag.StringVar(&args.bindAddress, "bind-address", "127.0.0.1:18080", "HTTP proxy listen address")
 	flag.IntVar(&args.verbosity, "verbosity", 20, "logging verbosity "+
 		"(10 - debug, 20 - info, 30 - warning, 40 - error, 50 - critical)")
 	flag.DurationVar(&args.timeout, "timeout", 10*time.Second, "timeout for network operations")
@@ -56,11 +64,13 @@ func parse_args() CLIArgs {
 	flag.StringVar(&args.proxy, "proxy", "", "sets base proxy to use for all dial-outs. "+
 		"Format: <http|https|socks5|socks5h>://[login:password@]host[:port] "+
 		"Examples: http://user:password@192.168.1.1:3128, socks5://10.0.0.1:1080")
+	flag.StringVar(&args.apiLogin, "api-login", "se0316", "SurfEasy API login")
+	flag.StringVar(&args.apiPassword, "api-password", "SILrMEPBmJuhomxWkfm3JalqHX2Eheg1YhlEZiMh8II", "SurfEasy API password")
 	flag.Parse()
 	if args.country == "" {
 		arg_fail("Country can't be empty string.")
 	}
-	if args.list_countries && args.list_proxies {
+	if args.listCountries && args.listProxies {
 		arg_fail("list-countries and list-proxies flags are mutually exclusive")
 	}
 	return args
@@ -92,6 +102,8 @@ func run() int {
 		log.LstdFlags|log.Lshortfile),
 		args.verbosity)
 
+	mainLogger.Info("opera-proxy client version %s is starting...", version)
+
 	var dialer ContextDialer = &net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
@@ -112,30 +124,136 @@ func run() int {
 		dialer = pxDialer.(ContextDialer)
 	}
 
-	if args.list_countries {
-		return print_countries(args.timeout)
-	}
-	if args.list_proxies {
-		return print_proxies(args.country, args.proxy_type, args.limit, args.timeout)
-	}
-
-	mainLogger.Info("opera-proxy client version %s is starting...", version)
-	mainLogger.Info("Constructing fallback DNS upstream...")
-	resolver, err := NewResolver(args.resolver, args.timeout)
+	seclient, err := se.NewSEClient(args.apiLogin, args.apiPassword, &http.Transport{
+		DialContext:           dialer.DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	})
 	if err != nil {
-		mainLogger.Critical("Unable to instantiate DNS resolver: %v", err)
-		return 6
+		mainLogger.Critical("Unable to construct SEClient: %v", err)
+		return 8
 	}
 
-	// TODO: get creds here
-	handlerDialer := NewProxyDialer(endpoint.NetAddr(), endpoint.TLSName, auth, dialer)
-	mainLogger.Info("Endpoint: %s", endpoint.URL().String())
+	ctx, cl := context.WithTimeout(context.Background(), args.timeout)
+	err = seclient.AnonRegister(ctx)
+	if err != nil {
+		mainLogger.Critical("Unable to perform anonymous registration: %v", err)
+		return 9
+	}
+	cl()
+
+	ctx, cl = context.WithTimeout(context.Background(), args.timeout)
+	err = seclient.RegisterDevice(ctx)
+	if err != nil {
+		mainLogger.Critical("Unable to perform device registration: %v", err)
+		return 10
+	}
+	cl()
+
+	if args.listCountries {
+		return printCountries(mainLogger, args.timeout, seclient)
+	}
+
+	ctx, cl = context.WithTimeout(context.Background(), args.timeout)
+	// TODO: learn about requested_geo value format
+	ips, err := seclient.Discover(ctx, fmt.Sprintf("\"%s\",,", args.country))
+	if err != nil {
+		mainLogger.Critical("Endpoint discovery failed: %v", err)
+		return 12
+	}
+
+	if args.listProxies {
+		//return printProxies(args.country, args.proxy_type, args.limit, args.timeout)
+		return 666
+	}
+
+	if len(ips) == 0 {
+		mainLogger.Critical("Empty endpoint list!")
+		return 13
+	}
+
+	endpoint := ips[0]
+	authHdr := basic_auth_header(seclient.GetProxyCredentials())
+	auth := func () string {
+		return authHdr
+	}
+
+	handlerDialer := NewProxyDialer(endpoint.NetAddr(), fmt.Sprintf("%s0.sec-tunnel.com", args.country), auth, dialer)
+	mainLogger.Info("Endpoint: %s", endpoint.NetAddr())
 	mainLogger.Info("Starting proxy server...")
 	handler := NewProxyHandler(handlerDialer, proxyLogger)
 	mainLogger.Info("Init complete.")
-	err = http.ListenAndServe(args.bind_address, handler)
+	err = http.ListenAndServe(args.bindAddress, handler)
 	mainLogger.Critical("Server terminated with a reason: %v", err)
 	mainLogger.Info("Shutting down...")
+	return 0
+}
+
+func printCountries(logger *CondLogger, timeout time.Duration, seclient *se.SEClient) int {
+	ctx, cl := context.WithTimeout(context.Background(), timeout)
+	defer cl()
+	list, err := seclient.GeoList(ctx)
+	if err != nil {
+		logger.Critical("GeoList error: %v", err)
+		return 11
+	}
+
+	wr := csv.NewWriter(os.Stdout)
+	defer wr.Flush()
+	wr.Write([]string{"country code", "country name"})
+	for _, country := range list {
+		wr.Write([]string{country.CountryCode, country.Country})
+	}
+	return 0
+}
+
+func printProxies(country string, proxy_type string, limit uint, timeout time.Duration) int {
+	/*var (
+		tunnels   *ZGetTunnelsResponse
+		user_uuid string
+		err       error
+	)
+	tx_res, tx_err := EnsureTransaction(context.Background(), timeout, func(ctx context.Context, client *http.Client) bool {
+		tunnels, user_uuid, err = Tunnels(ctx, client, country, proxy_type, limit)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Transaction error: %v. Retrying with the fallback mechanism...\n", err)
+			return false
+		}
+		return true
+	})
+	if tx_err != nil {
+		fmt.Fprintf(os.Stderr, "Transaction recovery mechanism failure: %v.\n", tx_err)
+		return 4
+	}
+	if !tx_res {
+		fmt.Fprintf(os.Stderr, "All attempts failed.")
+		return 3
+	}
+	wr := csv.NewWriter(os.Stdout)
+	login := LOGIN_PREFIX + user_uuid
+	password := tunnels.AgentKey
+	fmt.Println("Login:", login)
+	fmt.Println("Password:", password)
+	fmt.Println("Proxy-Authorization:",
+		basic_auth_header(login, password))
+	fmt.Println("")
+	wr.Write([]string{"host", "ip_address", "direct", "peer", "hola", "trial", "trial_peer", "vendor"})
+	for host, ip := range tunnels.IPList {
+		if PROTOCOL_WHITELIST[tunnels.Protocol[host]] {
+			wr.Write([]string{host,
+				ip,
+				strconv.FormatUint(uint64(tunnels.Port.Direct), 10),
+				strconv.FormatUint(uint64(tunnels.Port.Peer), 10),
+				strconv.FormatUint(uint64(tunnels.Port.Hola), 10),
+				strconv.FormatUint(uint64(tunnels.Port.Trial), 10),
+				strconv.FormatUint(uint64(tunnels.Port.TrialPeer), 10),
+				tunnels.Vendor[host]})
+		}
+	}
+	wr.Flush()*/
 	return 0
 }
 

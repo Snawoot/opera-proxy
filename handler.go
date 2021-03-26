@@ -17,8 +17,7 @@ type ProxyHandler struct {
 	httptransport http.RoundTripper
 }
 
-func NewProxyHandler(dialer ContextDialer, resolver *Resolver, logger *CondLogger) *ProxyHandler {
-	dialer = NewRetryDialer(dialer, resolver, logger)
+func NewProxyHandler(dialer ContextDialer, logger *CondLogger) *ProxyHandler {
 	httptransport := &http.Transport{
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,

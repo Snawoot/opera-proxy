@@ -4,16 +4,10 @@ import (
 	"bufio"
 	"context"
 	"encoding/base64"
-	"encoding/csv"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"net/url"
-	"os"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -79,80 +73,6 @@ func proxyh2(ctx context.Context, leftreader io.ReadCloser, leftwriter io.Writer
 	}
 	<-groupdone
 	return
-}
-
-func print_countries(timeout time.Duration) int {
-	var (
-		countries CountryList
-		err       error
-	)
-	tx_res, tx_err := EnsureTransaction(context.Background(), timeout, func(ctx context.Context, client *http.Client) bool {
-		countries, err = VPNCountries(ctx, client)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Transaction error: %v. Retrying with the fallback mechanism...\n", err)
-			return false
-		}
-		return true
-	})
-	if tx_err != nil {
-		fmt.Fprintf(os.Stderr, "Transaction recovery mechanism failure: %v.\n", tx_err)
-		return 4
-	}
-	if !tx_res {
-		fmt.Fprintf(os.Stderr, "All attempts failed.")
-		return 3
-	}
-	for _, code := range countries {
-		fmt.Printf("%v - %v\n", code, ISO3166[strings.ToUpper(code)])
-	}
-	return 0
-}
-
-func print_proxies(country string, proxy_type string, limit uint, timeout time.Duration) int {
-	var (
-		tunnels   *ZGetTunnelsResponse
-		user_uuid string
-		err       error
-	)
-	tx_res, tx_err := EnsureTransaction(context.Background(), timeout, func(ctx context.Context, client *http.Client) bool {
-		tunnels, user_uuid, err = Tunnels(ctx, client, country, proxy_type, limit)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Transaction error: %v. Retrying with the fallback mechanism...\n", err)
-			return false
-		}
-		return true
-	})
-	if tx_err != nil {
-		fmt.Fprintf(os.Stderr, "Transaction recovery mechanism failure: %v.\n", tx_err)
-		return 4
-	}
-	if !tx_res {
-		fmt.Fprintf(os.Stderr, "All attempts failed.")
-		return 3
-	}
-	wr := csv.NewWriter(os.Stdout)
-	login := LOGIN_PREFIX + user_uuid
-	password := tunnels.AgentKey
-	fmt.Println("Login:", login)
-	fmt.Println("Password:", password)
-	fmt.Println("Proxy-Authorization:",
-		basic_auth_header(login, password))
-	fmt.Println("")
-	wr.Write([]string{"host", "ip_address", "direct", "peer", "hola", "trial", "trial_peer", "vendor"})
-	for host, ip := range tunnels.IPList {
-		if PROTOCOL_WHITELIST[tunnels.Protocol[host]] {
-			wr.Write([]string{host,
-				ip,
-				strconv.FormatUint(uint64(tunnels.Port.Direct), 10),
-				strconv.FormatUint(uint64(tunnels.Port.Peer), 10),
-				strconv.FormatUint(uint64(tunnels.Port.Hola), 10),
-				strconv.FormatUint(uint64(tunnels.Port.Trial), 10),
-				strconv.FormatUint(uint64(tunnels.Port.TrialPeer), 10),
-				tunnels.Vendor[host]})
-		}
-	}
-	wr.Flush()
-	return 0
 }
 
 // Hop-by-hop headers. These are removed when sent to the backend.

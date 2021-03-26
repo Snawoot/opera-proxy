@@ -291,6 +291,10 @@ func (c *SEClient) Discover(ctx context.Context, requestedGeo string) ([]SEIPEnt
 	return discoverRes.Data.IPs, nil
 }
 
+func (c *SEClient) GetProxyCredentials() (string, string) {
+	return c.AssignedDeviceIDHash, c.DevicePassword
+}
+
 func (c *SEClient) populateRequest(req *http.Request) {
 	req.Header["SE-Client-Version"] = []string{c.Settings.ClientVersion}
 	req.Header["SE-Operating-System"] = []string{c.Settings.OperatingSystem}

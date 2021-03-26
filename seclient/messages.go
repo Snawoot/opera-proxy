@@ -2,6 +2,8 @@ package seclient
 
 import (
 	"encoding/json"
+	"net"
+	"fmt"
 	"errors"
 	"strconv"
 )
@@ -76,6 +78,14 @@ type SEIPEntry struct {
 	Geo   SEGeoEntry `json:"geo"`
 	IP    string     `json:"ip"`
 	Ports []uint16   `json:"ports"`
+}
+
+func (e *SEIPEntry) NetAddr() string {
+	if len(e.Ports) == 0 {
+		return net.JoinHostPort(e.IP, "443")
+	} else {
+		return net.JoinHostPort(e.IP, fmt.Sprintf("%d", e.Ports[0]))
+	}
 }
 
 type SEDiscoverResponse struct {
