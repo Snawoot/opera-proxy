@@ -61,13 +61,26 @@ type SERegisterDeviceResponse struct {
 }
 
 type SEGeoEntry struct {
-	Country     string `json:"country"`
+	Country     string `json:"country,omitempty"`
 	CountryCode string `json:"country_code"`
 }
 
 type SEGeoListResponse struct {
 	Data struct {
 		Geos []SEGeoEntry `json:"geos"`
-	}
-	Status SEStatusPair
+	} `json:"data"`
+	Status SEStatusPair `json:"return_code"`
+}
+
+type SEIPEntry struct {
+	Geo   SEGeoEntry `json:"geo"`
+	IP    string     `json:"ip"`
+	Ports []uint16   `json:"ports"`
+}
+
+type SEDiscoverResponse struct {
+	Data struct {
+		IPs []SEIPEntry `json:"ips"`
+	} `json:"data"`
+	Status SEStatusPair `json:"return_code"`
 }

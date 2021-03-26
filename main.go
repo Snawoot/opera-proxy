@@ -41,4 +41,11 @@ func main() {
 		log.Fatalln(err)
 	}
 	log.Printf("Geo List: %#v", geos)
+
+	log.Println("------------ GETTING IP LIST ------------")
+	ips, err := seclient.Discover(context.TODO(), "\"EU\",,")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Printf("IP List: %#v", ips)
 }

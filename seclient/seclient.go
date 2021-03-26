@@ -247,6 +247,50 @@ func (c *SEClient) GeoList(ctx context.Context) ([]SEGeoEntry, error) {
 	return geoListRes.Data.Geos, nil
 }
 
+func (c *SEClient) Discover(ctx context.Context, requestedGeo string) ([]SEIPEntry, error) {
+	geoListInput := url.Values{
+		"serial_no": {c.AssignedDeviceIDHash},
+		"requested_geo": {requestedGeo},
+	}
+	req, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		c.Settings.Endpoints.Discover,
+		strings.NewReader(geoListInput.Encode()),
+	)
+	if err != nil {
+		return nil, err
+	}
+	c.populateRequest(req)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.HttpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("bad http status: %s", resp.Status)
+	}
+
+	decoder := json.NewDecoder(resp.Body)
+	var discoverRes SEDiscoverResponse
+	err = decoder.Decode(&discoverRes)
+	cleanupBody(resp.Body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if discoverRes.Status.Code != SE_STATUS_OK {
+		return nil, fmt.Errorf("API responded with error message: code=%d, msg=\"%s\"",
+			discoverRes.Status.Code, discoverRes.Status.Message)
+	}
+
+	return discoverRes.Data.IPs, nil
+}
+
 func (c *SEClient) populateRequest(req *http.Request) {
 	req.Header["SE-Client-Version"] = []string{c.Settings.ClientVersion}
 	req.Header["SE-Operating-System"] = []string{c.Settings.OperatingSystem}
