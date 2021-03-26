@@ -25,7 +25,7 @@ func main() {
 		log.Fatalln(err)
 	}
 	log.Printf("seclient = %#v", seclient)
-	//log.Printf("jar = %#v", seclient.HttpClient.Jar)
+	log.Printf("jar = %#v", seclient.HttpClient.Jar)
 
 	log.Println("------------ DOING DEVICE REGISTRATION ------------")
 	err = seclient.RegisterDevice(context.TODO())
@@ -33,4 +33,12 @@ func main() {
 		log.Fatalln(err)
 	}
 	log.Printf("seclient = %#v", seclient)
+	log.Printf("Device Password: %s", seclient.DevicePassword)
+
+	log.Println("------------ GETTING GEO LIST ------------")
+	geos, err := seclient.GeoList(context.TODO())
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Printf("Geo List: %#v", geos)
 }

@@ -109,12 +109,7 @@ func (c *SEClient) AnonRegister(ctx context.Context) error {
 	}
 
 	c.SubscriberEmail = fmt.Sprintf("%s@%s.best.vpn", localPart, c.Settings.ClientType)
-
-	password, err := randomCapitalHexString(c.rng, ANON_PASSWORD_BYTES)
-	if err != nil {
-		return err
-	}
-	c.SubscriberPassword = password
+	c.SubscriberPassword = capitalHexSHA1(c.SubscriberEmail)
 
 	return c.Register(ctx)
 }
@@ -207,6 +202,49 @@ func (c *SEClient) RegisterDevice(ctx context.Context) error {
 	c.DevicePassword = regRes.Data.DevicePassword
 	c.AssignedDeviceIDHash = capitalHexSHA1(regRes.Data.DeviceID)
 	return nil
+}
+
+func (c *SEClient) GeoList(ctx context.Context) ([]SEGeoEntry, error) {
+	geoListInput := url.Values{
+		"device_id": {c.AssignedDeviceIDHash},
+	}
+	req, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		c.Settings.Endpoints.GeoList,
+		strings.NewReader(geoListInput.Encode()),
+	)
+	if err != nil {
+		return nil, err
+	}
+	c.populateRequest(req)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.HttpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("bad http status: %s", resp.Status)
+	}
+
+	decoder := json.NewDecoder(resp.Body)
+	var geoListRes SEGeoListResponse
+	err = decoder.Decode(&geoListRes)
+	cleanupBody(resp.Body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if geoListRes.Status.Code != SE_STATUS_OK {
+		return nil, fmt.Errorf("API responded with error message: code=%d, msg=\"%s\"",
+			geoListRes.Status.Code, geoListRes.Status.Message)
+	}
+
+	return geoListRes.Data.Geos, nil
 }
 
 func (c *SEClient) populateRequest(req *http.Request) {

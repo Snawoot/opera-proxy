@@ -59,3 +59,15 @@ type SERegisterDeviceResponse struct {
 	Data   SERegisterDeviceData `json:"data"`
 	Status SEStatusPair         `json:"return_code"`
 }
+
+type SEGeoEntry struct {
+	Country     string `json:"country"`
+	CountryCode string `json:"country_code"`
+}
+
+type SEGeoListResponse struct {
+	Data struct {
+		Geos []SEGeoEntry `json:"geos"`
+	}
+	Status SEStatusPair
+}
