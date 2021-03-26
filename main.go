@@ -126,18 +126,25 @@ func run() int {
 		dialer = pxDialer.(ContextDialer)
 	}
 
+	// Dialing w/o SNI, receiving self-signed certificate, so skip verification.
+	// Either way we'll validate certificate of actual proxy server.
+	tlsConfig := &tls.Config{
+		ServerName: "",
+		InsecureSkipVerify: true,
+	}
 	seclient, err := se.NewSEClient(args.apiLogin, args.apiPassword, &http.Transport{
 		DialContext:           dialer.DialContext,
+		DialTLSContext: func (ctx context.Context, network, addr string) (net.Conn, error) {
+			conn, err := dialer.DialContext(ctx, network, addr)
+			if err != nil {
+				return conn, err
+			}
+			return tls.Client(conn, tlsConfig), nil
+		},
 		ForceAttemptHTTP2:     true,
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
-		// Dialing w/o SNI, receiving self-signed certificate, so skip verification.
-		// Either way we'll validate certificate of actual proxy server.
-		TLSClientConfig: &tls.Config{
-			ServerName: "",
-			InsecureSkipVerify: true,
-		},
 		ExpectContinueTimeout: 1 * time.Second,
 	})
 	if err != nil {
