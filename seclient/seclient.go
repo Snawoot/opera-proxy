@@ -249,7 +249,7 @@ func (c *SEClient) GeoList(ctx context.Context) ([]SEGeoEntry, error) {
 
 func (c *SEClient) Discover(ctx context.Context, requestedGeo string) ([]SEIPEntry, error) {
 	geoListInput := url.Values{
-		"serial_no": {c.AssignedDeviceIDHash},
+		"serial_no":     {c.AssignedDeviceIDHash},
 		"requested_geo": {requestedGeo},
 	}
 	req, err := http.NewRequestWithContext(

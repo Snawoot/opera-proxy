@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	version            = "undefined"
+	version = "undefined"
 )
 
 func perror(msg string) {
@@ -31,18 +31,18 @@ func arg_fail(msg string) {
 }
 
 type CLIArgs struct {
-	country                                 string
-	bind_address                            string
-	verbosity                               int
-	timeout                         time.Duration
-	resolver                                string
-	showVersion                             bool
-	proxy                                   string
+	country      string
+	bind_address string
+	verbosity    int
+	timeout      time.Duration
+	resolver     string
+	showVersion  bool
+	proxy        string
 }
 
 func parse_args() CLIArgs {
 	var args CLIArgs
-	flag.StringVar(&args.country, "country", "us", "desired proxy location")
+	flag.StringVar(&args.country, "country", "EU", "desired proxy location")
 	flag.BoolVar(&args.list_countries, "list-countries", false, "list available countries and exit")
 	flag.BoolVar(&args.list_proxies, "list-proxies", false, "output proxy list and exit")
 	flag.StringVar(&args.bind_address, "bind-address", "127.0.0.1:8080", "HTTP proxy listen address")
@@ -53,8 +53,8 @@ func parse_args() CLIArgs {
 		"DNS/DoH/DoT resolver to workaround Hola blocked hosts. "+
 			"See https://github.com/ameshkov/dnslookup/ for upstream DNS URL format.")
 	flag.BoolVar(&args.showVersion, "version", false, "show program version and exit")
-	flag.StringVar(&args.proxy, "proxy", "", "sets base proxy to use for all dial-outs. " +
-		"Format: <http|https|socks5|socks5h>://[login:password@]host[:port] " +
+	flag.StringVar(&args.proxy, "proxy", "", "sets base proxy to use for all dial-outs. "+
+		"Format: <http|https|socks5|socks5h>://[login:password@]host[:port] "+
 		"Examples: http://user:password@192.168.1.1:3128, socks5://10.0.0.1:1080")
 	flag.Parse()
 	if args.country == "" {
