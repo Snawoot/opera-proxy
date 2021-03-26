@@ -12,6 +12,8 @@ import (
 	"net/url"
 	"os"
 	"time"
+	"crypto/tls"
+	"strings"
 
 	xproxy "golang.org/x/net/proxy"
 
@@ -130,6 +132,12 @@ func run() int {
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
+		// Dialing w/o SNI, receiving self-signed certificate, so skip verification.
+		// Either way we'll validate certificate of actual proxy server.
+		TLSClientConfig: &tls.Config{
+			ServerName: "",
+			InsecureSkipVerify: true,
+		},
 		ExpectContinueTimeout: 1 * time.Second,
 	})
 	if err != nil {
@@ -166,8 +174,7 @@ func run() int {
 	}
 
 	if args.listProxies {
-		//return printProxies(args.country, args.proxy_type, args.limit, args.timeout)
-		return 666
+		return printProxies(ips, seclient)
 	}
 
 	if len(ips) == 0 {
@@ -210,50 +217,24 @@ func printCountries(logger *CondLogger, timeout time.Duration, seclient *se.SECl
 	return 0
 }
 
-func printProxies(country string, proxy_type string, limit uint, timeout time.Duration) int {
-	/*var (
-		tunnels   *ZGetTunnelsResponse
-		user_uuid string
-		err       error
-	)
-	tx_res, tx_err := EnsureTransaction(context.Background(), timeout, func(ctx context.Context, client *http.Client) bool {
-		tunnels, user_uuid, err = Tunnels(ctx, client, country, proxy_type, limit)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Transaction error: %v. Retrying with the fallback mechanism...\n", err)
-			return false
-		}
-		return true
-	})
-	if tx_err != nil {
-		fmt.Fprintf(os.Stderr, "Transaction recovery mechanism failure: %v.\n", tx_err)
-		return 4
-	}
-	if !tx_res {
-		fmt.Fprintf(os.Stderr, "All attempts failed.")
-		return 3
-	}
+func printProxies(ips []se.SEIPEntry, seclient *se.SEClient) int {
 	wr := csv.NewWriter(os.Stdout)
-	login := LOGIN_PREFIX + user_uuid
-	password := tunnels.AgentKey
-	fmt.Println("Login:", login)
-	fmt.Println("Password:", password)
-	fmt.Println("Proxy-Authorization:",
-		basic_auth_header(login, password))
+	defer wr.Flush()
+	login, password := seclient.GetProxyCredentials()
+	fmt.Println("Proxy login:", login)
+	fmt.Println("Proxy password:", password)
+	fmt.Println("Proxy-Authorization:", basic_auth_header(login, password))
 	fmt.Println("")
-	wr.Write([]string{"host", "ip_address", "direct", "peer", "hola", "trial", "trial_peer", "vendor"})
-	for host, ip := range tunnels.IPList {
-		if PROTOCOL_WHITELIST[tunnels.Protocol[host]] {
-			wr.Write([]string{host,
-				ip,
-				strconv.FormatUint(uint64(tunnels.Port.Direct), 10),
-				strconv.FormatUint(uint64(tunnels.Port.Peer), 10),
-				strconv.FormatUint(uint64(tunnels.Port.Hola), 10),
-				strconv.FormatUint(uint64(tunnels.Port.Trial), 10),
-				strconv.FormatUint(uint64(tunnels.Port.TrialPeer), 10),
-				tunnels.Vendor[host]})
+	wr.Write([]string{"host", "ip_address", "port"})
+	for i, ip := range ips {
+		for _, port := range ip.Ports {
+			wr.Write([]string{
+				fmt.Sprintf("%s%d.sec-tunnel.com", strings.ToLower(ip.Geo.CountryCode), i),
+				ip.IP,
+				fmt.Sprintf("%d", port),
+			})
 		}
 	}
-	wr.Flush()*/
 	return 0
 }
 
