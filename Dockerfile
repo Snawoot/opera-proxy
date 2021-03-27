@@ -15,5 +15,5 @@ COPY --from=build /certs.crt /etc/ssl/certs/ca-certificates.crt
 FROM scratch
 COPY --from=arrange / /
 USER 9999:9999
-EXPOSE 8080/tcp
+EXPOSE 18080/tcp
 ENTRYPOINT ["/opera-proxy", "-bind-address", "0.0.0.0:18080"]
