@@ -2,9 +2,9 @@ package seclient
 
 import (
 	"encoding/json"
-	"net"
-	"fmt"
 	"errors"
+	"fmt"
+	"net"
 	"strconv"
 )
 

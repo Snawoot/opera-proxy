@@ -1,8 +1,9 @@
 package main
 
 import (
-	"encoding/csv"
 	"context"
+	"crypto/tls"
+	"encoding/csv"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,9 +12,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"time"
-	"crypto/tls"
 	"strings"
+	"time"
 
 	xproxy "golang.org/x/net/proxy"
 
@@ -37,17 +37,17 @@ func arg_fail(msg string) {
 }
 
 type CLIArgs struct {
-	country      string
+	country       string
 	listCountries bool
-	listProxies bool
-	bindAddress string
-	verbosity    int
-	timeout      time.Duration
-	resolver     string
-	showVersion  bool
-	proxy        string
-	apiLogin     string
-	apiPassword  string
+	listProxies   bool
+	bindAddress   string
+	verbosity     int
+	timeout       time.Duration
+	showVersion   bool
+	proxy         string
+	apiLogin      string
+	apiPassword   string
+	apiAddress    string
 }
 
 func parse_args() CLIArgs {
@@ -59,15 +59,13 @@ func parse_args() CLIArgs {
 	flag.IntVar(&args.verbosity, "verbosity", 20, "logging verbosity "+
 		"(10 - debug, 20 - info, 30 - warning, 40 - error, 50 - critical)")
 	flag.DurationVar(&args.timeout, "timeout", 10*time.Second, "timeout for network operations")
-	flag.StringVar(&args.resolver, "resolver", "https://cloudflare-dns.com/dns-query",
-		"DNS/DoH/DoT resolver to workaround Hola blocked hosts. "+
-			"See https://github.com/ameshkov/dnslookup/ for upstream DNS URL format.")
 	flag.BoolVar(&args.showVersion, "version", false, "show program version and exit")
 	flag.StringVar(&args.proxy, "proxy", "", "sets base proxy to use for all dial-outs. "+
 		"Format: <http|https|socks5|socks5h>://[login:password@]host[:port] "+
 		"Examples: http://user:password@192.168.1.1:3128, socks5://10.0.0.1:1080")
 	flag.StringVar(&args.apiLogin, "api-login", "se0316", "SurfEasy API login")
 	flag.StringVar(&args.apiPassword, "api-password", "SILrMEPBmJuhomxWkfm3JalqHX2Eheg1YhlEZiMh8II", "SurfEasy API password")
+	flag.StringVar(&args.apiAddress, "api-address", "", "override IP address of api.sec-tunnel.com")
 	flag.Parse()
 	if args.country == "" {
 		arg_fail("Country can't be empty string.")
@@ -110,6 +108,7 @@ func run() int {
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
 	}
+
 	if args.proxy != "" {
 		xproxy.RegisterDialerType("http", proxyFromURLWrapper)
 		xproxy.RegisterDialerType("https", proxyFromURLWrapper)
@@ -126,16 +125,21 @@ func run() int {
 		dialer = pxDialer.(ContextDialer)
 	}
 
+	seclientDialer := dialer
+	if args.apiAddress != "" {
+		seclientDialer = NewFixedDialer(args.apiAddress, dialer)
+	}
+
 	// Dialing w/o SNI, receiving self-signed certificate, so skip verification.
 	// Either way we'll validate certificate of actual proxy server.
 	tlsConfig := &tls.Config{
-		ServerName: "",
+		ServerName:         "",
 		InsecureSkipVerify: true,
 	}
 	seclient, err := se.NewSEClient(args.apiLogin, args.apiPassword, &http.Transport{
-		DialContext:           dialer.DialContext,
-		DialTLSContext: func (ctx context.Context, network, addr string) (net.Conn, error) {
-			conn, err := dialer.DialContext(ctx, network, addr)
+		DialContext: seclientDialer.DialContext,
+		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			conn, err := seclientDialer.DialContext(ctx, network, addr)
 			if err != nil {
 				return conn, err
 			}
@@ -191,7 +195,7 @@ func run() int {
 
 	endpoint := ips[0]
 	authHdr := basic_auth_header(seclient.GetProxyCredentials())
-	auth := func () string {
+	auth := func() string {
 		return authHdr
 	}
 
