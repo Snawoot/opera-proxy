@@ -20,6 +20,11 @@ import (
 	se "github.com/Snawoot/opera-proxy/seclient"
 )
 
+const (
+	API_DOMAIN = "api.sec-tunnel.com"
+	PROXY_SUFFIX = "sec-tunnel.com"
+)
+
 var (
 	version = "undefined"
 )
@@ -48,6 +53,7 @@ type CLIArgs struct {
 	apiLogin      string
 	apiPassword   string
 	apiAddress    string
+	bootstrapDNS  string
 }
 
 func parse_args() CLIArgs {
@@ -65,13 +71,20 @@ func parse_args() CLIArgs {
 		"Examples: http://user:password@192.168.1.1:3128, socks5://10.0.0.1:1080")
 	flag.StringVar(&args.apiLogin, "api-login", "se0316", "SurfEasy API login")
 	flag.StringVar(&args.apiPassword, "api-password", "SILrMEPBmJuhomxWkfm3JalqHX2Eheg1YhlEZiMh8II", "SurfEasy API password")
-	flag.StringVar(&args.apiAddress, "api-address", "", "override IP address of api.sec-tunnel.com")
+	flag.StringVar(&args.apiAddress, "api-address", "", fmt.Sprintf("override IP address of %s", API_DOMAIN))
+	flag.StringVar(&args.bootstrapDNS, "bootstrap-dns", "",
+		"DNS/DoH/DoT/DoQ resolver for initial discovering of SurfEasy API address. "+
+		"See https://github.com/ameshkov/dnslookup/ for upstream DNS URL format. "+
+		"Examples: https://1.1.1.1/dns-query, quic://dns.adguard.com")
 	flag.Parse()
 	if args.country == "" {
 		arg_fail("Country can't be empty string.")
 	}
 	if args.listCountries && args.listProxies {
 		arg_fail("list-countries and list-proxies flags are mutually exclusive")
+	}
+	if args.apiAddress != "" && args.bootstrapDNS != "" {
+		arg_fail("api-address and bootstrap-dns options are mutually exclusive")
 	}
 	return args
 }
@@ -126,8 +139,29 @@ func run() int {
 	}
 
 	seclientDialer := dialer
-	if args.apiAddress != "" {
-		seclientDialer = NewFixedDialer(args.apiAddress, dialer)
+	if args.apiAddress != "" || args.bootstrapDNS != "" {
+		var apiAddress string
+		if args.apiAddress != "" {
+			apiAddress = args.apiAddress
+			mainLogger.Info("Using fixed API host IP address = %s", apiAddress)
+		} else {
+			resolver, err := NewResolver(args.bootstrapDNS, args.timeout)
+			if err != nil {
+				mainLogger.Critical("Unable to instantiate DNS resolver: %v", err)
+				return 4
+			}
+
+			mainLogger.Info("Discovering API IP address...")
+			addrs := resolver.ResolveA(API_DOMAIN)
+			if len(addrs) == 0 {
+				mainLogger.Critical("Unable to resolve %s with specified bootstrap DNS", API_DOMAIN)
+				return 14
+			}
+
+			apiAddress = addrs[0]
+			mainLogger.Info("Discovered address of API host = %s", apiAddress)
+		}
+		seclientDialer = NewFixedDialer(apiAddress, dialer)
 	}
 
 	// Dialing w/o SNI, receiving self-signed certificate, so skip verification.
@@ -199,7 +233,7 @@ func run() int {
 		return authHdr
 	}
 
-	handlerDialer := NewProxyDialer(endpoint.NetAddr(), fmt.Sprintf("%s0.sec-tunnel.com", args.country), auth, dialer)
+	handlerDialer := NewProxyDialer(endpoint.NetAddr(), fmt.Sprintf("%s0.%s", args.country, PROXY_SUFFIX), auth, dialer)
 	mainLogger.Info("Endpoint: %s", endpoint.NetAddr())
 	mainLogger.Info("Starting proxy server...")
 	handler := NewProxyHandler(handlerDialer, proxyLogger)
@@ -240,7 +274,7 @@ func printProxies(ips []se.SEIPEntry, seclient *se.SEClient) int {
 	for i, ip := range ips {
 		for _, port := range ip.Ports {
 			wr.Write([]string{
-				fmt.Sprintf("%s%d.sec-tunnel.com", strings.ToLower(ip.Geo.CountryCode), i),
+				fmt.Sprintf("%s%d.%s", strings.ToLower(ip.Geo.CountryCode), i, PROXY_SUFFIX),
 				ip.IP,
 				fmt.Sprintf("%d", port),
 			})
