@@ -116,8 +116,13 @@ install:
 	bin-freebsd-amd64 \
 	bin-freebsd-386 \
 	bin-freebsd-arm \
+	bin-netbsd-amd64 \
+	bin-netbsd-386 \
+	bin-openbsd-amd64 \
+	bin-openbsd-386 \
 	bin-darwin-amd64 \
 	bin-windows-amd64 \
 	bin-windows-386 \
+	bin-windows-arm \
 	bin-android-arm \
-	bind-android-arm64
+	bin-android-arm64
