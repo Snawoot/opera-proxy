@@ -96,6 +96,7 @@ eu3.sec-tunnel.com,77.111.244.22,443
 | list-countries | - | list available countries and exit |
 | list-proxies | - | output proxy list and exit |
 | proxy | String | sets base proxy to use for all dial-outs. Format: `<http\|https\|socks5\|socks5h>://[login:password@]host[:port]` Examples: `http://user:password@192.168.1.1:3128`, `socks5://10.0.0.1:1080` |
+| refresh | Duration | login refresh interval (default 4h0m0s) |
 | timeout | Duration | timeout for network operations (default 10s) |
 | verbosity | Number | logging verbosity (10 - debug, 20 - info, 30 - warning, 40 - error, 50 - critical) (default 20) |
 | version | - | show program version and exit |
