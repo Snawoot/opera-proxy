@@ -94,3 +94,5 @@ type SEDiscoverResponse struct {
 	} `json:"data"`
 	Status SEStatusPair `json:"return_code"`
 }
+
+type SESubscriberLoginResponse SERegisterSubscriberResponse

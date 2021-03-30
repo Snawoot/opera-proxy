@@ -291,6 +291,49 @@ func (c *SEClient) Discover(ctx context.Context, requestedGeo string) ([]SEIPEnt
 	return discoverRes.Data.IPs, nil
 }
 
+func (c *SEClient) Login(ctx context.Context) error {
+	loginInput := url.Values{
+		"login":       {c.SubscriberEmail},
+		"password":    {c.SubscriberPassword},
+		"client_type": {c.Settings.ClientType},
+	}
+	req, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		c.Settings.Endpoints.SubscriberLogin,
+		strings.NewReader(loginInput.Encode()),
+	)
+	if err != nil {
+		return err
+	}
+	c.populateRequest(req)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.HttpClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("bad http status: %s", resp.Status)
+	}
+
+	decoder := json.NewDecoder(resp.Body)
+	var loginRes SESubscriberLoginResponse
+	err = decoder.Decode(&loginRes)
+	cleanupBody(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if loginRes.Status.Code != SE_STATUS_OK {
+		return fmt.Errorf("API responded with error message: code=%d, msg=\"%s\"",
+			loginRes.Status.Code, loginRes.Status.Message)
+	}
+	return nil
+}
+
 func (c *SEClient) GetProxyCredentials() (string, string) {
 	return c.AssignedDeviceIDHash, c.DevicePassword
 }
