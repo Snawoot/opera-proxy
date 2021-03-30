@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	API_DOMAIN = "api.sec-tunnel.com"
+	API_DOMAIN   = "api.sec-tunnel.com"
 	PROXY_SUFFIX = "sec-tunnel.com"
 )
 
@@ -74,8 +74,8 @@ func parse_args() CLIArgs {
 	flag.StringVar(&args.apiAddress, "api-address", "", fmt.Sprintf("override IP address of %s", API_DOMAIN))
 	flag.StringVar(&args.bootstrapDNS, "bootstrap-dns", "",
 		"DNS/DoH/DoT/DoQ resolver for initial discovering of SurfEasy API address. "+
-		"See https://github.com/ameshkov/dnslookup/ for upstream DNS URL format. "+
-		"Examples: https://1.1.1.1/dns-query, quic://dns.adguard.com")
+			"See https://github.com/ameshkov/dnslookup/ for upstream DNS URL format. "+
+			"Examples: https://1.1.1.1/dns-query, quic://dns.adguard.com")
 	flag.Parse()
 	if args.country == "" {
 		arg_fail("Country can't be empty string.")

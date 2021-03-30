@@ -7,13 +7,13 @@ import (
 
 type FixedDialer struct {
 	fixedAddress string
-	next ContextDialer
+	next         ContextDialer
 }
 
 func NewFixedDialer(address string, next ContextDialer) *FixedDialer {
 	return &FixedDialer{
 		fixedAddress: address,
-		next: next,
+		next:         next,
 	}
 }
 
