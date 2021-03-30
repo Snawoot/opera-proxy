@@ -54,6 +54,7 @@ type CLIArgs struct {
 	apiPassword   string
 	apiAddress    string
 	bootstrapDNS  string
+	refresh       time.Duration
 }
 
 func parse_args() CLIArgs {
@@ -76,6 +77,7 @@ func parse_args() CLIArgs {
 		"DNS/DoH/DoT/DoQ resolver for initial discovering of SurfEasy API address. "+
 			"See https://github.com/ameshkov/dnslookup/ for upstream DNS URL format. "+
 			"Examples: https://1.1.1.1/dns-query, quic://dns.adguard.com")
+	flag.DurationVar(&args.refresh, "refresh", 4*time.Hour, "login refresh interval")
 	flag.Parse()
 	if args.country == "" {
 		arg_fail("Country can't be empty string.")
@@ -205,6 +207,18 @@ func run() int {
 		return 10
 	}
 	cl()
+
+	runTicker(context.Background(), args.refresh, func (ctx context.Context) {
+		mainLogger.Info("Refreshing login...")
+		loginCtx, cl := context.WithTimeout(ctx, args.timeout)
+		defer cl()
+		err := seclient.Login(loginCtx)
+		if err != nil {
+			mainLogger.Critical("Login refresh failed: %v", err)
+			return
+		}
+		mainLogger.Info("Login refreshed.")
+	})
 
 	if args.listCountries {
 		return printCountries(mainLogger, args.timeout, seclient)
