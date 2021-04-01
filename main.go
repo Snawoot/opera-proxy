@@ -210,14 +210,24 @@ func run() int {
 
 	runTicker(context.Background(), args.refresh, func(ctx context.Context) {
 		mainLogger.Info("Refreshing login...")
-		loginCtx, cl := context.WithTimeout(ctx, args.timeout)
+		reqCtx, cl := context.WithTimeout(ctx, args.timeout)
 		defer cl()
-		err := seclient.Login(loginCtx)
+		err := seclient.Login(reqCtx)
 		if err != nil {
 			mainLogger.Critical("Login refresh failed: %v", err)
 			return
 		}
 		mainLogger.Info("Login refreshed.")
+
+		mainLogger.Info("Refreshing device password...")
+		reqCtx, cl = context.WithTimeout(ctx, args.timeout)
+		defer cl()
+		err = seclient.DeviceGeneratePassword(reqCtx)
+		if err != nil {
+			mainLogger.Critical("Device password refresh failed: %v", err)
+			return
+		}
+		mainLogger.Info("Device password refreshed.")
 	})
 
 	if args.listCountries {
