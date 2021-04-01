@@ -208,6 +208,27 @@ func run() int {
 	}
 	cl()
 
+	if args.listCountries {
+		return printCountries(mainLogger, args.timeout, seclient)
+	}
+
+	ctx, cl = context.WithTimeout(context.Background(), args.timeout)
+	// TODO: learn about requested_geo value format
+	ips, err := seclient.Discover(ctx, fmt.Sprintf("\"%s\",,", args.country))
+	if err != nil {
+		mainLogger.Critical("Endpoint discovery failed: %v", err)
+		return 12
+	}
+
+	if args.listProxies {
+		return printProxies(ips, seclient)
+	}
+
+	if len(ips) == 0 {
+		mainLogger.Critical("Empty endpoint list!")
+		return 13
+	}
+
 	runTicker(context.Background(), args.refresh, func(ctx context.Context) {
 		mainLogger.Info("Refreshing login...")
 		reqCtx, cl := context.WithTimeout(ctx, args.timeout)
@@ -229,27 +250,6 @@ func run() int {
 		}
 		mainLogger.Info("Device password refreshed.")
 	})
-
-	if args.listCountries {
-		return printCountries(mainLogger, args.timeout, seclient)
-	}
-
-	ctx, cl = context.WithTimeout(context.Background(), args.timeout)
-	// TODO: learn about requested_geo value format
-	ips, err := seclient.Discover(ctx, fmt.Sprintf("\"%s\",,", args.country))
-	if err != nil {
-		mainLogger.Critical("Endpoint discovery failed: %v", err)
-		return 12
-	}
-
-	if args.listProxies {
-		return printProxies(ips, seclient)
-	}
-
-	if len(ips) == 0 {
-		mainLogger.Critical("Empty endpoint list!")
-		return 13
-	}
 
 	endpoint := ips[0]
 	auth := func() string {
