@@ -11,6 +11,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+	"sync"
 
 	dac "github.com/Snawoot/go-http-digest-auth-client"
 	"golang.org/x/net/publicsuffix"
@@ -66,6 +67,7 @@ type SEClient struct {
 	AssignedDeviceID     string
 	AssignedDeviceIDHash string
 	DevicePassword       string
+	StateMux             sync.RWMutex
 	rng                  *rand.Rand
 }
 
@@ -110,8 +112,13 @@ func (c *SEClient) AnonRegister(ctx context.Context) error {
 		return err
 	}
 
-	c.SubscriberEmail = fmt.Sprintf("%s@%s.best.vpn", localPart, c.Settings.ClientType)
-	c.SubscriberPassword = capitalHexSHA1(c.SubscriberEmail)
+	subscriberEmail := fmt.Sprintf("%s@%s.best.vpn", localPart, c.Settings.ClientType)
+	subscriberPassword := capitalHexSHA1(subscriberEmail)
+
+	c.StateMux.Lock()
+	c.SubscriberEmail = subscriberEmail
+	c.SubscriberPassword = subscriberPassword
+	c.StateMux.Unlock()
 
 	return c.Register(ctx)
 }
@@ -149,9 +156,11 @@ func (c *SEClient) RegisterDevice(ctx context.Context) error {
 			regRes.Status.Code, regRes.Status.Message)
 	}
 
+	c.StateMux.Lock()
 	c.AssignedDeviceID = regRes.Data.DeviceID
 	c.DevicePassword = regRes.Data.DevicePassword
 	c.AssignedDeviceIDHash = capitalHexSHA1(regRes.Data.DeviceID)
+	c.StateMux.Unlock()
 	return nil
 }
 
@@ -209,7 +218,11 @@ func (c *SEClient) Login(ctx context.Context) error {
 }
 
 func (c *SEClient) GetProxyCredentials() (string, string) {
-	return c.AssignedDeviceIDHash, c.DevicePassword
+	c.StateMux.RLock()
+	assignedDeviceIDHash := c.AssignedDeviceIDHash
+	devicePassword := c.DevicePassword
+	c.StateMux.RUnlock()
+	return assignedDeviceIDHash, devicePassword
 }
 
 func (c *SEClient) populateRequest(req *http.Request) {
