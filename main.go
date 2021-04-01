@@ -235,7 +235,7 @@ func run() int {
 		defer cl()
 		err := seclient.Login(reqCtx)
 		if err != nil {
-			mainLogger.Critical("Login refresh failed: %v", err)
+			mainLogger.Error("Login refresh failed: %v", err)
 			return
 		}
 		mainLogger.Info("Login refreshed.")
@@ -245,7 +245,7 @@ func run() int {
 		defer cl()
 		err = seclient.DeviceGeneratePassword(reqCtx)
 		if err != nil {
-			mainLogger.Critical("Device password refresh failed: %v", err)
+			mainLogger.Error("Device password refresh failed: %v", err)
 			return
 		}
 		mainLogger.Info("Device password refreshed.")
