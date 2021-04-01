@@ -208,7 +208,7 @@ func run() int {
 	}
 	cl()
 
-	runTicker(context.Background(), args.refresh, func (ctx context.Context) {
+	runTicker(context.Background(), args.refresh, func(ctx context.Context) {
 		mainLogger.Info("Refreshing login...")
 		loginCtx, cl := context.WithTimeout(ctx, args.timeout)
 		defer cl()

@@ -126,7 +126,7 @@ func (c *SEClient) AnonRegister(ctx context.Context) error {
 func (c *SEClient) Register(ctx context.Context) error {
 	var regRes SERegisterSubscriberResponse
 	err := c.RpcCall(ctx, c.Settings.Endpoints.RegisterSubscriber, StrKV{
-		"email": c.SubscriberEmail,
+		"email":    c.SubscriberEmail,
 		"password": c.SubscriberPassword,
 	}, &regRes)
 	if err != nil {

@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	COPY_BUF = 128 * 1024
+	COPY_BUF            = 128 * 1024
 	WALLCLOCK_PRECISION = 1 * time.Second
 )
 
@@ -148,30 +148,30 @@ func copyBody(wr io.Writer, body io.Reader) {
 }
 
 func AfterWallClock(d time.Duration) <-chan time.Time {
-    ch := make(chan time.Time, 1)
-    deadline := time.Now().Add(d).Truncate(0)
-    after_ch := time.After(d)
-    ticker := time.NewTicker(WALLCLOCK_PRECISION)
-    go func() {
-        var t time.Time
-        defer ticker.Stop()
-        for {
-            select {
-            case t = <-after_ch:
-                ch <-t
-                return
-            case t = <-ticker.C:
-                if t.After(deadline) {
-                    ch <-t
-                    return
-                }
-            }
-        }
-    }()
-    return ch
+	ch := make(chan time.Time, 1)
+	deadline := time.Now().Add(d).Truncate(0)
+	after_ch := time.After(d)
+	ticker := time.NewTicker(WALLCLOCK_PRECISION)
+	go func() {
+		var t time.Time
+		defer ticker.Stop()
+		for {
+			select {
+			case t = <-after_ch:
+				ch <- t
+				return
+			case t = <-ticker.C:
+				if t.After(deadline) {
+					ch <- t
+					return
+				}
+			}
+		}
+	}()
+	return ch
 }
 
-func runTicker(ctx context.Context, interval time.Duration, cb func (context.Context)) {
+func runTicker(ctx context.Context, interval time.Duration, cb func(context.Context)) {
 	go func() {
 		for {
 			select {
