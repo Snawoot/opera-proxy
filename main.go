@@ -252,9 +252,8 @@ func run() int {
 	}
 
 	endpoint := ips[0]
-	authHdr := basic_auth_header(seclient.GetProxyCredentials())
 	auth := func() string {
-		return authHdr
+		return basic_auth_header(seclient.GetProxyCredentials())
 	}
 
 	handlerDialer := NewProxyDialer(endpoint.NetAddr(), fmt.Sprintf("%s0.%s", args.country, PROXY_SUFFIX), auth, dialer)
