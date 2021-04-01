@@ -73,19 +73,14 @@ type SEClient struct {
 	rng                  *rand.Rand
 }
 
+type StrKV map[string]string
+
 // Instantiates SurfEasy client with default settings and given API keys.
 // Optional `transport` parameter allows to override HTTP transport used
 // for HTTP calls
 func NewSEClient(apiUsername, apiSecret string, transport http.RoundTripper) (*SEClient, error) {
 	if transport == nil {
 		transport = http.DefaultTransport
-	}
-
-	jar, err := cookiejar.New(&cookiejar.Options{
-		PublicSuffixList: publicsuffix.List,
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	rng := rand.New(RandomSource)
@@ -95,18 +90,36 @@ func NewSEClient(apiUsername, apiSecret string, transport http.RoundTripper) (*S
 		return nil, err
 	}
 
-	return &SEClient{
+	res := &SEClient{
 		HttpClient: &http.Client{
 			Transport: dac.NewDigestTransport(apiUsername, apiSecret, transport),
-			Jar:       jar,
 		},
 		Settings: DefaultSESettings,
 		rng:      rng,
 		DeviceID: device_id,
-	}, nil
+	}
+
+	err = res.ResetCookies()
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
-type StrKV map[string]string
+func (c *SEClient) ResetCookies() error {
+	jar, err := cookiejar.New(&cookiejar.Options{
+		PublicSuffixList: publicsuffix.List,
+	})
+	if err != nil {
+		return err
+	}
+
+	c.StateMux.Lock()
+	c.HttpClient.Jar = jar
+	c.StateMux.Unlock()
+	return nil
+}
 
 func (c *SEClient) AnonRegister(ctx context.Context) error {
 	localPart, err := randomEmailLocalPart(c.rng)
@@ -202,8 +215,13 @@ func (c *SEClient) Discover(ctx context.Context, requestedGeo string) ([]SEIPEnt
 }
 
 func (c *SEClient) Login(ctx context.Context) error {
+	err := c.ResetCookies()
+	if err != nil {
+		return err
+	}
+
 	var loginRes SESubscriberLoginResponse
-	err := c.RpcCall(ctx, c.Settings.Endpoints.SubscriberLogin, StrKV{
+	err = c.RpcCall(ctx, c.Settings.Endpoints.SubscriberLogin, StrKV{
 		"login":       c.SubscriberEmail,
 		"password":    c.SubscriberPassword,
 		"client_type": c.Settings.ClientType,
@@ -277,7 +295,7 @@ func (c *SEClient) RpcCall(ctx context.Context, endpoint string, params map[stri
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad http status: %s", resp.Status)
+		return fmt.Errorf("bad http status: %s, headers: %#v", resp.Status, resp.Header)
 	}
 
 	decoder := json.NewDecoder(resp.Body)
