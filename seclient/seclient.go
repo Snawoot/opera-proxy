@@ -25,19 +25,21 @@ const (
 )
 
 type SEEndpoints struct {
-	RegisterSubscriber string
-	SubscriberLogin    string
-	RegisterDevice     string
-	GeoList            string
-	Discover           string
+	RegisterSubscriber     string
+	SubscriberLogin        string
+	RegisterDevice         string
+	DeviceGeneratePassword string
+	GeoList                string
+	Discover               string
 }
 
 var DefaultSEEndpoints = SEEndpoints{
-	RegisterSubscriber: "https://api.sec-tunnel.com/v4/register_subscriber",
-	SubscriberLogin:    "https://api.sec-tunnel.com/v4/subscriber_login",
-	RegisterDevice:     "https://api.sec-tunnel.com/v4/register_device",
-	GeoList:            "https://api.sec-tunnel.com/v4/geo_list",
-	Discover:           "https://api.sec-tunnel.com/v4/discover",
+	RegisterSubscriber:     "https://api.sec-tunnel.com/v4/register_subscriber",
+	SubscriberLogin:        "https://api.sec-tunnel.com/v4/subscriber_login",
+	RegisterDevice:         "https://api.sec-tunnel.com/v4/register_device",
+	DeviceGeneratePassword: "https://api.sec-tunnel.com/v4/device_generate_password",
+	GeoList:                "https://api.sec-tunnel.com/v4/geo_list",
+	Discover:               "https://api.sec-tunnel.com/v4/discover",
 }
 
 type SESettings struct {
@@ -214,6 +216,26 @@ func (c *SEClient) Login(ctx context.Context) error {
 		return fmt.Errorf("API responded with error message: code=%d, msg=\"%s\"",
 			loginRes.Status.Code, loginRes.Status.Message)
 	}
+	return nil
+}
+
+func (c *SEClient) DeviceGeneratePassword(ctx context.Context) error {
+	var genRes SEDeviceGeneratePasswordResponse
+	err := c.RpcCall(ctx, c.Settings.Endpoints.DeviceGeneratePassword, StrKV{
+		"device_id": c.AssignedDeviceID,
+	}, &genRes)
+	if err != nil {
+		return err
+	}
+
+	if genRes.Status.Code != SE_STATUS_OK {
+		return fmt.Errorf("API responded with error message: code=%d, msg=\"%s\"",
+			genRes.Status.Code, genRes.Status.Message)
+	}
+
+	c.StateMux.Lock()
+	c.DevicePassword = genRes.Data.DevicePassword
+	c.StateMux.Unlock()
 	return nil
 }
 
