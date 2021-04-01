@@ -102,6 +102,8 @@ func NewSEClient(apiUsername, apiSecret string, transport http.RoundTripper) (*S
 	}, nil
 }
 
+type StrKV map[string]string
+
 func (c *SEClient) AnonRegister(ctx context.Context) error {
 	localPart, err := randomEmailLocalPart(c.rng)
 	if err != nil {
@@ -115,36 +117,11 @@ func (c *SEClient) AnonRegister(ctx context.Context) error {
 }
 
 func (c *SEClient) Register(ctx context.Context) error {
-	registerInput := url.Values{
-		"email":    {c.SubscriberEmail},
-		"password": {c.SubscriberPassword},
-	}
-	req, err := http.NewRequestWithContext(
-		ctx,
-		"POST",
-		c.Settings.Endpoints.RegisterSubscriber,
-		strings.NewReader(registerInput.Encode()),
-	)
-	if err != nil {
-		return err
-	}
-	c.populateRequest(req)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := c.HttpClient.Do(req)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad http status: %s", resp.Status)
-	}
-
-	decoder := json.NewDecoder(resp.Body)
 	var regRes SERegisterSubscriberResponse
-	err = decoder.Decode(&regRes)
-	cleanupBody(resp.Body)
+	err := c.RpcCall(ctx, c.Settings.Endpoints.RegisterSubscriber, StrKV{
+		"email": c.SubscriberEmail,
+		"password": c.SubscriberPassword,
+	}, &regRes)
 	if err != nil {
 		return err
 	}
@@ -157,38 +134,12 @@ func (c *SEClient) Register(ctx context.Context) error {
 }
 
 func (c *SEClient) RegisterDevice(ctx context.Context) error {
-	registerDeviceInput := url.Values{
-		"client_type": {c.Settings.ClientType},
-		"device_hash": {c.DeviceID},
-		"device_name": {c.Settings.DeviceName},
-	}
-	req, err := http.NewRequestWithContext(
-		ctx,
-		"POST",
-		c.Settings.Endpoints.RegisterDevice,
-		strings.NewReader(registerDeviceInput.Encode()),
-	)
-	if err != nil {
-		return err
-	}
-	c.populateRequest(req)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := c.HttpClient.Do(req)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad http status: %s", resp.Status)
-	}
-
-	decoder := json.NewDecoder(resp.Body)
 	var regRes SERegisterDeviceResponse
-	err = decoder.Decode(&regRes)
-	cleanupBody(resp.Body)
-
+	err := c.RpcCall(ctx, c.Settings.Endpoints.RegisterDevice, StrKV{
+		"client_type": c.Settings.ClientType,
+		"device_hash": c.DeviceID,
+		"device_name": c.Settings.DeviceName,
+	}, &regRes)
 	if err != nil {
 		return err
 	}
@@ -205,36 +156,10 @@ func (c *SEClient) RegisterDevice(ctx context.Context) error {
 }
 
 func (c *SEClient) GeoList(ctx context.Context) ([]SEGeoEntry, error) {
-	geoListInput := url.Values{
-		"device_id": {c.AssignedDeviceIDHash},
-	}
-	req, err := http.NewRequestWithContext(
-		ctx,
-		"POST",
-		c.Settings.Endpoints.GeoList,
-		strings.NewReader(geoListInput.Encode()),
-	)
-	if err != nil {
-		return nil, err
-	}
-	c.populateRequest(req)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := c.HttpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("bad http status: %s", resp.Status)
-	}
-
-	decoder := json.NewDecoder(resp.Body)
 	var geoListRes SEGeoListResponse
-	err = decoder.Decode(&geoListRes)
-	cleanupBody(resp.Body)
-
+	err := c.RpcCall(ctx, c.Settings.Endpoints.GeoList, StrKV{
+		"device_id": c.AssignedDeviceIDHash,
+	}, &geoListRes)
 	if err != nil {
 		return nil, err
 	}
@@ -248,37 +173,11 @@ func (c *SEClient) GeoList(ctx context.Context) ([]SEGeoEntry, error) {
 }
 
 func (c *SEClient) Discover(ctx context.Context, requestedGeo string) ([]SEIPEntry, error) {
-	geoListInput := url.Values{
-		"serial_no":     {c.AssignedDeviceIDHash},
-		"requested_geo": {requestedGeo},
-	}
-	req, err := http.NewRequestWithContext(
-		ctx,
-		"POST",
-		c.Settings.Endpoints.Discover,
-		strings.NewReader(geoListInput.Encode()),
-	)
-	if err != nil {
-		return nil, err
-	}
-	c.populateRequest(req)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := c.HttpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("bad http status: %s", resp.Status)
-	}
-
-	decoder := json.NewDecoder(resp.Body)
 	var discoverRes SEDiscoverResponse
-	err = decoder.Decode(&discoverRes)
-	cleanupBody(resp.Body)
-
+	err := c.RpcCall(ctx, c.Settings.Endpoints.Discover, StrKV{
+		"serial_no":     c.AssignedDeviceIDHash,
+		"requested_geo": requestedGeo,
+	}, &discoverRes)
 	if err != nil {
 		return nil, err
 	}
@@ -292,37 +191,12 @@ func (c *SEClient) Discover(ctx context.Context, requestedGeo string) ([]SEIPEnt
 }
 
 func (c *SEClient) Login(ctx context.Context) error {
-	loginInput := url.Values{
-		"login":       {c.SubscriberEmail},
-		"password":    {c.SubscriberPassword},
-		"client_type": {c.Settings.ClientType},
-	}
-	req, err := http.NewRequestWithContext(
-		ctx,
-		"POST",
-		c.Settings.Endpoints.SubscriberLogin,
-		strings.NewReader(loginInput.Encode()),
-	)
-	if err != nil {
-		return err
-	}
-	c.populateRequest(req)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := c.HttpClient.Do(req)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad http status: %s", resp.Status)
-	}
-
-	decoder := json.NewDecoder(resp.Body)
 	var loginRes SESubscriberLoginResponse
-	err = decoder.Decode(&loginRes)
-	cleanupBody(resp.Body)
+	err := c.RpcCall(ctx, c.Settings.Endpoints.SubscriberLogin, StrKV{
+		"login":       c.SubscriberEmail,
+		"password":    c.SubscriberPassword,
+		"client_type": c.Settings.ClientType,
+	}, &loginRes)
 	if err != nil {
 		return err
 	}
@@ -342,6 +216,44 @@ func (c *SEClient) populateRequest(req *http.Request) {
 	req.Header["SE-Client-Version"] = []string{c.Settings.ClientVersion}
 	req.Header["SE-Operating-System"] = []string{c.Settings.OperatingSystem}
 	req.Header["User-Agent"] = []string{c.Settings.UserAgent}
+}
+
+func (c *SEClient) RpcCall(ctx context.Context, endpoint string, params map[string]string, res interface{}) error {
+	input := make(url.Values)
+	for k, v := range params {
+		input[k] = []string{v}
+	}
+	req, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		endpoint,
+		strings.NewReader(input.Encode()),
+	)
+	if err != nil {
+		return err
+	}
+	c.populateRequest(req)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.HttpClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("bad http status: %s", resp.Status)
+	}
+
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(res)
+	cleanupBody(resp.Body)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Does cleanup of HTTP response in order to make it reusable by keep-alive
