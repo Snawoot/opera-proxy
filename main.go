@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	API_DOMAIN = "api.sec-tunnel.com"
+	API_DOMAIN   = "api.sec-tunnel.com"
 	PROXY_SUFFIX = "sec-tunnel.com"
 )
 
@@ -54,6 +54,7 @@ type CLIArgs struct {
 	apiPassword   string
 	apiAddress    string
 	bootstrapDNS  string
+	refresh       time.Duration
 }
 
 func parse_args() CLIArgs {
@@ -74,8 +75,9 @@ func parse_args() CLIArgs {
 	flag.StringVar(&args.apiAddress, "api-address", "", fmt.Sprintf("override IP address of %s", API_DOMAIN))
 	flag.StringVar(&args.bootstrapDNS, "bootstrap-dns", "",
 		"DNS/DoH/DoT/DoQ resolver for initial discovering of SurfEasy API address. "+
-		"See https://github.com/ameshkov/dnslookup/ for upstream DNS URL format. "+
-		"Examples: https://1.1.1.1/dns-query, quic://dns.adguard.com")
+			"See https://github.com/ameshkov/dnslookup/ for upstream DNS URL format. "+
+			"Examples: https://1.1.1.1/dns-query, quic://dns.adguard.com")
+	flag.DurationVar(&args.refresh, "refresh", 4*time.Hour, "login refresh interval")
 	flag.Parse()
 	if args.country == "" {
 		arg_fail("Country can't be empty string.")
@@ -227,10 +229,31 @@ func run() int {
 		return 13
 	}
 
+	runTicker(context.Background(), args.refresh, func(ctx context.Context) {
+		mainLogger.Info("Refreshing login...")
+		reqCtx, cl := context.WithTimeout(ctx, args.timeout)
+		defer cl()
+		err := seclient.Login(reqCtx)
+		if err != nil {
+			mainLogger.Error("Login refresh failed: %v", err)
+			return
+		}
+		mainLogger.Info("Login refreshed.")
+
+		mainLogger.Info("Refreshing device password...")
+		reqCtx, cl = context.WithTimeout(ctx, args.timeout)
+		defer cl()
+		err = seclient.DeviceGeneratePassword(reqCtx)
+		if err != nil {
+			mainLogger.Error("Device password refresh failed: %v", err)
+			return
+		}
+		mainLogger.Info("Device password refreshed.")
+	})
+
 	endpoint := ips[0]
-	authHdr := basic_auth_header(seclient.GetProxyCredentials())
 	auth := func() string {
-		return authHdr
+		return basic_auth_header(seclient.GetProxyCredentials())
 	}
 
 	handlerDialer := NewProxyDialer(endpoint.NetAddr(), fmt.Sprintf("%s0.%s", args.country, PROXY_SUFFIX), auth, dialer)

@@ -62,6 +62,15 @@ type SERegisterDeviceResponse struct {
 	Status SEStatusPair         `json:"return_code"`
 }
 
+type SEDeviceGeneratePasswordData struct {
+	DevicePassword string `json:"device_password"`
+}
+
+type SEDeviceGeneratePasswordResponse struct {
+	Data   SEDeviceGeneratePasswordData `json:"data"`
+	Status SEStatusPair                 `json:"return_code"`
+}
+
 type SEGeoEntry struct {
 	Country     string `json:"country,omitempty"`
 	CountryCode string `json:"country_code"`
@@ -94,3 +103,5 @@ type SEDiscoverResponse struct {
 	} `json:"data"`
 	Status SEStatusPair `json:"return_code"`
 }
+
+type SESubscriberLoginResponse SERegisterSubscriberResponse
