@@ -95,7 +95,7 @@ func NewSEClient(apiUsername, apiSecret string, transport http.RoundTripper) (*S
 
 	res := &SEClient{
 		httpClient: &http.Client{
-			Jar: jar,
+			Jar:       jar,
 			Transport: dac.NewDigestTransport(apiUsername, apiSecret, transport),
 		},
 		Settings: DefaultSESettings,
