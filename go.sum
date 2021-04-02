@@ -13,8 +13,8 @@ github.com/AdguardTeam/golibs v0.4.2/go.mod h1:skKsDKIBB7kkFflLJBpfGX+G8QFTx0WKU
 github.com/AdguardTeam/golibs v0.4.4 h1:cM9UySQiYFW79zo5XRwnaIWVzfW4eNXmZktMrWbthpw=
 github.com/AdguardTeam/golibs v0.4.4/go.mod h1:skKsDKIBB7kkFflLJBpfGX+G8QFTx0WKUzB6TIgtUj4=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
-github.com/Snawoot/go-http-digest-auth-client v1.1.2 h1:cOh288pbPDbgPf9GA5xnosmrN/F1VyBYaO1UjIhXWJc=
-github.com/Snawoot/go-http-digest-auth-client v1.1.2/go.mod h1:WiwNiPXTRGyjTGpBtSQJlM2wDPRRPpFGhMkMWpV4uqg=
+github.com/Snawoot/go-http-digest-auth-client v1.1.3 h1:Xd/SNBuIUJqotzmxRpbXovBJxmlVZOT19IZZdMdrJ0Q=
+github.com/Snawoot/go-http-digest-auth-client v1.1.3/go.mod h1:WiwNiPXTRGyjTGpBtSQJlM2wDPRRPpFGhMkMWpV4uqg=
 github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da h1:KjTM2ks9d14ZYCvmHS9iAKVt9AyzRSqNU1qabPih5BY=
 github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da/go.mod h1:eHEWzANqSiWQsof+nXEI9bUVUyV6F53Fp89EuCh2EAA=
 github.com/aead/poly1305 v0.0.0-20180717145839-3fee0db0b635 h1:52m0LGchQBBVqJRyYYufQuIbVqRawmubW3OFGqK1ekw=
