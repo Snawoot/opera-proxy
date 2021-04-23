@@ -171,14 +171,19 @@ func AfterWallClock(d time.Duration) <-chan time.Time {
 	return ch
 }
 
-func runTicker(ctx context.Context, interval time.Duration, cb func(context.Context)) {
+func runTicker(ctx context.Context, interval, retryInterval time.Duration, cb func(context.Context) error) {
 	go func() {
+		var err error
 		for {
+			nextInterval := interval
+			if err != nil {
+				nextInterval = retryInterval
+			}
 			select {
 			case <-ctx.Done():
 				return
-			case <-AfterWallClock(interval):
-				cb(ctx)
+			case <-AfterWallClock(nextInterval):
+				err = cb(ctx)
 			}
 		}
 	}()

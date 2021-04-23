@@ -55,6 +55,7 @@ type CLIArgs struct {
 	apiAddress    string
 	bootstrapDNS  string
 	refresh       time.Duration
+	refreshRetry  time.Duration
 }
 
 func parse_args() CLIArgs {
@@ -78,6 +79,7 @@ func parse_args() CLIArgs {
 			"See https://github.com/ameshkov/dnslookup/ for upstream DNS URL format. "+
 			"Examples: https://1.1.1.1/dns-query, quic://dns.adguard.com")
 	flag.DurationVar(&args.refresh, "refresh", 4*time.Hour, "login refresh interval")
+	flag.DurationVar(&args.refreshRetry, "refresh-retry", 5*time.Second, "login refresh retry interval")
 	flag.Parse()
 	if args.country == "" {
 		arg_fail("Country can't be empty string.")
@@ -229,14 +231,14 @@ func run() int {
 		return 13
 	}
 
-	runTicker(context.Background(), args.refresh, func(ctx context.Context) {
+	runTicker(context.Background(), args.refresh, args.refreshRetry, func(ctx context.Context) error {
 		mainLogger.Info("Refreshing login...")
 		reqCtx, cl := context.WithTimeout(ctx, args.timeout)
 		defer cl()
 		err := seclient.Login(reqCtx)
 		if err != nil {
 			mainLogger.Error("Login refresh failed: %v", err)
-			return
+			return err
 		}
 		mainLogger.Info("Login refreshed.")
 
@@ -246,9 +248,10 @@ func run() int {
 		err = seclient.DeviceGeneratePassword(reqCtx)
 		if err != nil {
 			mainLogger.Error("Device password refresh failed: %v", err)
-			return
+			return err
 		}
 		mainLogger.Info("Device password refreshed.")
+		return nil
 	})
 
 	endpoint := ips[0]
