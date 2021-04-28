@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/csv"
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -42,20 +44,22 @@ func arg_fail(msg string) {
 }
 
 type CLIArgs struct {
-	country       string
-	listCountries bool
-	listProxies   bool
-	bindAddress   string
-	verbosity     int
-	timeout       time.Duration
-	showVersion   bool
-	proxy         string
-	apiLogin      string
-	apiPassword   string
-	apiAddress    string
-	bootstrapDNS  string
-	refresh       time.Duration
-	refreshRetry  time.Duration
+	country             string
+	listCountries       bool
+	listProxies         bool
+	bindAddress         string
+	verbosity           int
+	timeout             time.Duration
+	showVersion         bool
+	proxy               string
+	apiLogin            string
+	apiPassword         string
+	apiAddress          string
+	bootstrapDNS        string
+	refresh             time.Duration
+	refreshRetry        time.Duration
+	certChainWorkaround bool
+	caFile              string
 }
 
 func parse_args() CLIArgs {
@@ -80,6 +84,9 @@ func parse_args() CLIArgs {
 			"Examples: https://1.1.1.1/dns-query, quic://dns.adguard.com")
 	flag.DurationVar(&args.refresh, "refresh", 4*time.Hour, "login refresh interval")
 	flag.DurationVar(&args.refreshRetry, "refresh-retry", 5*time.Second, "login refresh retry interval")
+	flag.BoolVar(&args.certChainWorkaround, "certchain-workaround", true,
+		"add bundled cross-signed intermediate cert to certchain to make it check out on old systems")
+	flag.StringVar(&args.caFile, "cafile", "", "use custom CA certificate bundle file")
 	flag.Parse()
 	if args.country == "" {
 		arg_fail("Country can't be empty string.")
@@ -259,7 +266,21 @@ func run() int {
 		return basic_auth_header(seclient.GetProxyCredentials())
 	}
 
-	handlerDialer := NewProxyDialer(endpoint.NetAddr(), fmt.Sprintf("%s0.%s", args.country, PROXY_SUFFIX), auth, dialer)
+	var caPool *x509.CertPool
+	if args.caFile != "" {
+		caPool = x509.NewCertPool()
+		certs, err := ioutil.ReadFile(args.caFile)
+		if err != nil {
+			mainLogger.Error("Can't load CA file: %v", err)
+			return 15
+		}
+		if ok := caPool.AppendCertsFromPEM(certs); !ok {
+			mainLogger.Error("Can't load certificates from CA file")
+			return 15
+		}
+	}
+
+	handlerDialer := NewProxyDialer(endpoint.NetAddr(), fmt.Sprintf("%s0.%s", args.country, PROXY_SUFFIX), auth, args.certChainWorkaround, caPool, dialer)
 	mainLogger.Info("Endpoint: %s", endpoint.NetAddr())
 	mainLogger.Info("Starting proxy server...")
 	handler := NewProxyHandler(handlerDialer, proxyLogger)
