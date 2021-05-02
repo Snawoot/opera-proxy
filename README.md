@@ -103,3 +103,7 @@ eu3.sec-tunnel.com,77.111.244.22,443
 | timeout | Duration | timeout for network operations (default 10s) |
 | verbosity | Number | logging verbosity (10 - debug, 20 - info, 30 - warning, 40 - error, 50 - critical) (default 20) |
 | version | - | show program version and exit |
+
+## See also
+
+* [Project wiki](https://github.com/Snawoot/opera-proxy/wiki)
