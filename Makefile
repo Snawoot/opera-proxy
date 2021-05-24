@@ -137,14 +137,21 @@ install:
 	bin-linux-amd64 \
 	bin-linux-386 \
 	bin-linux-arm \
+	bin-linux-arm64 \
 	bin-freebsd-amd64 \
 	bin-freebsd-386 \
 	bin-freebsd-arm \
+	bin-freebsd-arm64 \
 	bin-netbsd-amd64 \
 	bin-netbsd-386 \
+	bin-netbsd-arm \
+	bin-netbsd-arm64 \
 	bin-openbsd-amd64 \
 	bin-openbsd-386 \
+	bin-openbsd-arm \
+	bin-openbsd-arm64 \
 	bin-darwin-amd64 \
+	bin-darwin-arm64 \
 	bin-windows-amd64 \
 	bin-windows-386 \
 	bin-windows-arm \
