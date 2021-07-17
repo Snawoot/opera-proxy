@@ -13,7 +13,8 @@ GO := go
 src = $(wildcard *.go */*.go)
 
 native: bin-native
-all: bin-linux-amd64 bin-linux-386 bin-linux-arm \
+all: bin-linux-amd64 bin-linux-386 bin-linux-arm bin-linux-arm64 \
+	bin-linux-mips bin-linux-mipsle bin-linux-mips64 bin-linux-mips64le \
 	bin-freebsd-amd64 bin-freebsd-386 bin-freebsd-arm bin-freebsd-arm64 \
 	bin-netbsd-amd64 bin-netbsd-386 bin-netbsd-arm bin-netbsd-arm64 \
 	bin-openbsd-amd64 bin-openbsd-386 bin-openbsd-arm bin-openbsd-arm64 \
@@ -28,6 +29,10 @@ bin-linux-amd64: $(OUTSUFFIX).linux-amd64
 bin-linux-386: $(OUTSUFFIX).linux-386
 bin-linux-arm: $(OUTSUFFIX).linux-arm
 bin-linux-arm64: $(OUTSUFFIX).linux-arm64
+bin-linux-mips: $(OUTSUFFIX).linux-mips
+bin-linux-mipsle: $(OUTSUFFIX).linux-mipsle
+bin-linux-mips64: $(OUTSUFFIX).linux-mips64
+bin-linux-mips64le: $(OUTSUFFIX).linux-mips64le
 bin-freebsd-amd64: $(OUTSUFFIX).freebsd-amd64
 bin-freebsd-386: $(OUTSUFFIX).freebsd-386
 bin-freebsd-arm: $(OUTSUFFIX).freebsd-arm
@@ -62,6 +67,18 @@ $(OUTSUFFIX).linux-arm: $(src)
 
 $(OUTSUFFIX).linux-arm64: $(src)
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(GO) build $(BUILDOPTS) $(LDFLAGS) -o $@
+
+$(OUTSUFFIX).linux-mips: $(src)
+	CGO_ENABLED=0 GOOS=linux GOARCH=mips GOMIPS=softfloat $(GO) build $(BUILDOPTS) $(LDFLAGS) -o $@
+
+$(OUTSUFFIX).linux-mips64: $(src)
+	CGO_ENABLED=0 GOOS=linux GOARCH=mips64 GOMIPS=softfloat $(GO) build $(BUILDOPTS) $(LDFLAGS) -o $@
+
+$(OUTSUFFIX).linux-mipsle: $(src)
+	CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat $(GO) build $(BUILDOPTS) $(LDFLAGS) -o $@
+
+$(OUTSUFFIX).linux-mips64le: $(src)
+	CGO_ENABLED=0 GOOS=linux GOARCH=mips64le GOMIPS=softfloat $(GO) build $(BUILDOPTS) $(LDFLAGS) -o $@
 
 $(OUTSUFFIX).freebsd-amd64: $(src)
 	CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(GO) build $(BUILDOPTS) $(LDFLAGS) -o $@
@@ -138,6 +155,10 @@ install:
 	bin-linux-386 \
 	bin-linux-arm \
 	bin-linux-arm64 \
+	bin-linux-mips \
+	bin-linux-mipsle \
+	bin-linux-mips64 \
+	bin-linux-mips64le \
 	bin-freebsd-amd64 \
 	bin-freebsd-386 \
 	bin-freebsd-arm \
