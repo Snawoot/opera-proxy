@@ -13,7 +13,7 @@ type Resolver struct {
 const DOT = 0x2e
 
 func NewResolver(address string, timeout time.Duration) (*Resolver, error) {
-	opts := upstream.Options{Timeout: timeout}
+	opts := &upstream.Options{Timeout: timeout}
 	u, err := upstream.AddressToUpstream(address, opts)
 	if err != nil {
 		return nil, err
