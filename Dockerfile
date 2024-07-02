@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang AS build
+FROM --platform=$BUILDPLATFORM golang:1.22 AS build
 
 ARG GIT_DESC=undefined
 
