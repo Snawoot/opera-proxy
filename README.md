@@ -91,7 +91,7 @@ eu3.sec-tunnel.com,77.111.244.22,443
 | api-login | String | SurfEasy API login (default "se0316") |
 | api-password | String | SurfEasy API password (default "SILrMEPBmJuhomxWkfm3JalqHX2Eheg1YhlEZiMh8II") |
 | bind-address | String | HTTP proxy listen address (default "127.0.0.1:18080") |
-| bootstrap-dns | String | DNS/DoH/DoT/DoQ resolver for initial discovering of SurfEasy API address. See https://github.com/ameshkov/dnslookup/ for upstream DNS URL format. Examples: `https://1.1.1.1/dns-query`, `quic://dns.adguard.com` |
+| bootstrap-dns | String | DNS/DoH/DoT/DoQ resolver for initial discovering of SurfEasy API address. See https://github.com/ameshkov/dnslookup/ for upstream DNS URL format. Examples: `https://1.1.1.1/dns-query`, `quic://dns.adguard.com`  (default `https://1.1.1.3/dns-query`) |
 | cafile | String | use custom CA certificate bundle file |
 | certchain-workaround | Boolean | add bundled cross-signed intermediate cert to certchain to make it check out on old systems (default true) |
 | country | String | desired proxy location (default "EU") |

@@ -78,7 +78,7 @@ func parse_args() CLIArgs {
 	flag.StringVar(&args.apiLogin, "api-login", "se0316", "SurfEasy API login")
 	flag.StringVar(&args.apiPassword, "api-password", "SILrMEPBmJuhomxWkfm3JalqHX2Eheg1YhlEZiMh8II", "SurfEasy API password")
 	flag.StringVar(&args.apiAddress, "api-address", "", fmt.Sprintf("override IP address of %s", API_DOMAIN))
-	flag.StringVar(&args.bootstrapDNS, "bootstrap-dns", "",
+	flag.StringVar(&args.bootstrapDNS, "bootstrap-dns", "https://1.1.1.3/dns-query",
 		"DNS/DoH/DoT/DoQ resolver for initial discovering of SurfEasy API address. "+
 			"See https://github.com/ameshkov/dnslookup/ for upstream DNS URL format. "+
 			"Examples: https://1.1.1.1/dns-query, quic://dns.adguard.com")
