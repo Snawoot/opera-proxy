@@ -94,9 +94,6 @@ func parse_args() CLIArgs {
 	if args.listCountries && args.listProxies {
 		arg_fail("list-countries and list-proxies flags are mutually exclusive")
 	}
-	if args.apiAddress != "" && args.bootstrapDNS != "" {
-		arg_fail("api-address and bootstrap-dns options are mutually exclusive")
-	}
 	return args
 }
 
