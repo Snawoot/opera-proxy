@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -8,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -43,6 +45,37 @@ func arg_fail(msg string) {
 	os.Exit(2)
 }
 
+type CSVArg struct {
+	values []string
+}
+
+func (a *CSVArg) String() string {
+	if len(a.values) == 0 {
+		return ""
+	}
+	buf := new(bytes.Buffer)
+	wr := csv.NewWriter(buf)
+	wr.Write(a.values)
+	wr.Flush()
+	return strings.TrimRight(buf.String(), "\n")
+}
+
+func (a *CSVArg) Set(line string) error {
+	rd := csv.NewReader(strings.NewReader(line))
+	rd.FieldsPerRecord = -1
+	rd.TrimLeadingSpace = true
+	values, err := rd.Read()
+	if err == io.EOF {
+		a.values = nil
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("unable to parse comma-separated argument: %w", err)
+	}
+	a.values = values
+	return nil
+}
+
 type CLIArgs struct {
 	country             string
 	listCountries       bool
@@ -55,15 +88,26 @@ type CLIArgs struct {
 	apiLogin            string
 	apiPassword         string
 	apiAddress          string
-	bootstrapDNS        string
+	bootstrapDNS        *CSVArg
 	refresh             time.Duration
 	refreshRetry        time.Duration
 	certChainWorkaround bool
 	caFile              string
 }
 
-func parse_args() CLIArgs {
-	var args CLIArgs
+func parse_args() *CLIArgs {
+	args := &CLIArgs{
+		bootstrapDNS: &CSVArg{
+			values: []string{
+				"https://1.1.1.3/dns-query",
+				"https://security.cloudflare-dns.com/dns-query",
+				"https://wikimedia-dns.org/dns-query",
+				"https://dns.adguard-dns.com/dns-query",
+				"https://dns.quad9.net/dns-query",
+				"https://doh.cleanbrowsing.org/doh/adult-filter/",
+			},
+		},
+	}
 	flag.StringVar(&args.country, "country", "EU", "desired proxy location")
 	flag.BoolVar(&args.listCountries, "list-countries", false, "list available countries and exit")
 	flag.BoolVar(&args.listProxies, "list-proxies", false, "output proxy list and exit")
@@ -78,10 +122,10 @@ func parse_args() CLIArgs {
 	flag.StringVar(&args.apiLogin, "api-login", "se0316", "SurfEasy API login")
 	flag.StringVar(&args.apiPassword, "api-password", "SILrMEPBmJuhomxWkfm3JalqHX2Eheg1YhlEZiMh8II", "SurfEasy API password")
 	flag.StringVar(&args.apiAddress, "api-address", "", fmt.Sprintf("override IP address of %s", API_DOMAIN))
-	flag.StringVar(&args.bootstrapDNS, "bootstrap-dns", "https://1.1.1.3/dns-query",
-		"DNS/DoH/DoT/DoQ resolver for initial discovering of SurfEasy API address. "+
+	flag.Var(args.bootstrapDNS, "bootstrap-dns",
+		"comma-separated list of DNS/DoH/DoT/DoQ resolvers for initial discovery of SurfEasy API address. "+
 			"See https://github.com/ameshkov/dnslookup/ for upstream DNS URL format. "+
-			"Examples: https://1.1.1.1/dns-query, quic://dns.adguard.com")
+			"Examples: https://1.1.1.1/dns-query,quic://dns.adguard.com")
 	flag.DurationVar(&args.refresh, "refresh", 4*time.Hour, "login refresh interval")
 	flag.DurationVar(&args.refreshRetry, "refresh-retry", 5*time.Second, "login refresh retry interval")
 	flag.BoolVar(&args.certChainWorkaround, "certchain-workaround", true,
@@ -147,13 +191,13 @@ func run() int {
 	}
 
 	seclientDialer := dialer
-	if args.apiAddress != "" || args.bootstrapDNS != "" {
+	if args.apiAddress != "" || len(args.bootstrapDNS.values) > 0 {
 		var apiAddress string
 		if args.apiAddress != "" {
 			apiAddress = args.apiAddress
 			mainLogger.Info("Using fixed API host IP address = %s", apiAddress)
 		} else {
-			resolver, err := NewResolver(args.bootstrapDNS, args.timeout)
+			resolver, err := NewResolver(args.bootstrapDNS.values[0], args.timeout)
 			if err != nil {
 				mainLogger.Critical("Unable to instantiate DNS resolver: %v", err)
 				return 4

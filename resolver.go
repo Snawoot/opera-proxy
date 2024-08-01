@@ -1,9 +1,10 @@
 package main
 
 import (
+	"time"
+
 	"github.com/AdguardTeam/dnsproxy/upstream"
 	"github.com/miekg/dns"
-	"time"
 )
 
 type Resolver struct {
