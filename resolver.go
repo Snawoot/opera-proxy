@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/netip"
 	"time"
 
 	"github.com/AdguardTeam/dnsproxy/upstream"
+	"github.com/hashicorp/go-multierror"
 )
 
 type Resolver struct {
@@ -35,4 +37,16 @@ func NewResolver(addresses []string, timeout time.Duration) (*Resolver, error) {
 
 func (r *Resolver) LookupNetIP(ctx context.Context, network string, host string) (addrs []netip.Addr, err error) {
 	return r.resolvers.LookupNetIP(ctx, network, host)
+}
+
+func (r *Resolver) Close() error {
+	var res error
+	for _, resolver := range r.resolvers {
+		if closer, ok := resolver.(io.Closer); ok {
+			if err := closer.Close(); err != nil {
+				res = multierror.Append(res, err)
+			}
+		}
+	}
+	return res
 }

@@ -210,6 +210,10 @@ func run() int {
 			addrs, err := func() ([]netip.Addr, error) {
 				ctx, cancel := context.WithTimeout(context.Background(), args.timeout)
 				defer cancel()
+				defer func() {
+					resolver = nil
+				}()
+				defer resolver.Close()
 				return resolver.LookupNetIP(ctx, "ip4", API_DOMAIN)
 			}()
 			if err != nil {
