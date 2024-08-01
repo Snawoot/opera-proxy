@@ -101,6 +101,8 @@ func parse_args() *CLIArgs {
 		bootstrapDNS: &CSVArg{
 			values: []string{
 				"https://1.1.1.3/dns-query",
+				"https://8.8.8.8/dns-query",
+				"https://dns.google/dns-query",
 				"https://security.cloudflare-dns.com/dns-query",
 				"https://wikimedia-dns.org/dns-query",
 				"https://dns.adguard-dns.com/dns-query",
