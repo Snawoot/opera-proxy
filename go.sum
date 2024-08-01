@@ -1,7 +1,7 @@
 github.com/AdguardTeam/dnsproxy v0.72.2 h1:0uItzXnUIuC9r+ZvPbNquGaAHvdWnWLbhSDdxsZk5og=
 github.com/AdguardTeam/dnsproxy v0.72.2/go.mod h1:PA1UiTtTHMbXPv9NjHat+zrsgK8S7p/RJ+j/3tNqtUE=
-github.com/AdguardTeam/golibs v0.25.1 h1:po5dBbFCoZAySsbsMN/ZRB0WTLYDA1d8BxPgvriu/EA=
-github.com/AdguardTeam/golibs v0.25.1/go.mod h1:HaTyS2wCbxFudjht9N/+/Qf1b5cMad2BAYSwe7DPCXI=
+github.com/AdguardTeam/golibs v0.25.2-0.20240801110255-39bd5a44e118 h1:AM724Be00JKi26OV/9mS/bVwRHd6X3/TsJYp0w8+YK8=
+github.com/AdguardTeam/golibs v0.25.2-0.20240801110255-39bd5a44e118/go.mod h1:HaTyS2wCbxFudjht9N/+/Qf1b5cMad2BAYSwe7DPCXI=
 github.com/Snawoot/go-http-digest-auth-client v1.1.3 h1:Xd/SNBuIUJqotzmxRpbXovBJxmlVZOT19IZZdMdrJ0Q=
 github.com/Snawoot/go-http-digest-auth-client v1.1.3/go.mod h1:WiwNiPXTRGyjTGpBtSQJlM2wDPRRPpFGhMkMWpV4uqg=
 github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da h1:KjTM2ks9d14ZYCvmHS9iAKVt9AyzRSqNU1qabPih5BY=

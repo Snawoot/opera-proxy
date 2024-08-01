@@ -5,7 +5,6 @@ go 1.22.5
 require (
 	github.com/AdguardTeam/dnsproxy v0.72.2
 	github.com/Snawoot/go-http-digest-auth-client v1.1.3
-	github.com/miekg/dns v1.1.61
 	golang.org/x/net v0.27.0
 )
 
@@ -17,6 +16,7 @@ require (
 	github.com/ameshkov/dnsstamps v1.0.3 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/google/pprof v0.0.0-20240727154555-813a5fbdbec8 // indirect
+	github.com/miekg/dns v1.1.61 // indirect
 	github.com/onsi/ginkgo/v2 v2.19.1 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
 	github.com/quic-go/quic-go v0.45.1 // indirect
@@ -29,3 +29,5 @@ require (
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/tools v0.23.0 // indirect
 )
+
+replace github.com/AdguardTeam/golibs v0.25.1 => github.com/AdguardTeam/golibs v0.25.2-0.20240801110255-39bd5a44e118
