@@ -1,5 +1,5 @@
 name: opera-proxy
-version: '1.4.0'
+version: '1.4.1'
 summary: Standalone Opera VPN proxies client.
 description: |
   Standalone Opera VPN proxies client. Just run it and it'll start plain HTTP proxy server forwarding traffic via proxies of your choice.
