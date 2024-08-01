@@ -14,6 +14,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"strings"
@@ -197,20 +198,28 @@ func run() int {
 			apiAddress = args.apiAddress
 			mainLogger.Info("Using fixed API host IP address = %s", apiAddress)
 		} else {
-			resolver, err := NewResolver(args.bootstrapDNS.values[0], args.timeout)
+			resolver, err := NewResolver(args.bootstrapDNS.values, args.timeout)
 			if err != nil {
 				mainLogger.Critical("Unable to instantiate DNS resolver: %v", err)
 				return 4
 			}
 
 			mainLogger.Info("Discovering API IP address...")
-			addrs := resolver.ResolveA(API_DOMAIN)
+			addrs, err := func() ([]netip.Addr, error) {
+				ctx, cancel := context.WithTimeout(context.Background(), args.timeout)
+				defer cancel()
+				return resolver.LookupNetIP(ctx, "ip4", API_DOMAIN)
+			}()
+			if err != nil {
+				mainLogger.Critical("Unable to resolve API server address: %v", err)
+				return 14
+			}
 			if len(addrs) == 0 {
 				mainLogger.Critical("Unable to resolve %s with specified bootstrap DNS", API_DOMAIN)
 				return 14
 			}
 
-			apiAddress = addrs[0]
+			apiAddress = addrs[0].String()
 			mainLogger.Info("Discovered address of API host = %s", apiAddress)
 		}
 		seclientDialer = NewFixedDialer(apiAddress, dialer)
