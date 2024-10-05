@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	API_DOMAIN   = "api.sec-tunnel.com"
+	API_DOMAIN   = "api2.sec-tunnel.com"
 	PROXY_SUFFIX = "sec-tunnel.com"
 )
 
