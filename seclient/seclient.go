@@ -32,12 +32,12 @@ type SEEndpoints struct {
 }
 
 var DefaultSEEndpoints = SEEndpoints{
-	RegisterSubscriber:     "https://api.sec-tunnel.com/v4/register_subscriber",
-	SubscriberLogin:        "https://api.sec-tunnel.com/v4/subscriber_login",
-	RegisterDevice:         "https://api.sec-tunnel.com/v4/register_device",
-	DeviceGeneratePassword: "https://api.sec-tunnel.com/v4/device_generate_password",
-	GeoList:                "https://api.sec-tunnel.com/v4/geo_list",
-	Discover:               "https://api.sec-tunnel.com/v4/discover",
+	RegisterSubscriber:     "https://api2.sec-tunnel.com/v4/register_subscriber",
+	SubscriberLogin:        "https://api2.sec-tunnel.com/v4/subscriber_login",
+	RegisterDevice:         "https://api2.sec-tunnel.com/v4/register_device",
+	DeviceGeneratePassword: "https://api2.sec-tunnel.com/v4/device_generate_password",
+	GeoList:                "https://api2.sec-tunnel.com/v4/geo_list",
+	Discover:               "https://api2.sec-tunnel.com/v4/discover",
 }
 
 type SESettings struct {
@@ -50,9 +50,9 @@ type SESettings struct {
 }
 
 var DefaultSESettings = SESettings{
-	ClientVersion:   "Stable 74.0.3911.232",
+	ClientVersion:   "Stable 114.0.5282.21",
 	ClientType:      "se0316",
-	UserAgent:       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.192 Safari/537.36 OPR/74.0.3911.232",
+	UserAgent:       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 OPR/114.0.0.0",
 	DeviceName:      "Opera-Browser-Client",
 	OperatingSystem: "Windows",
 	Endpoints:       DefaultSEEndpoints,
