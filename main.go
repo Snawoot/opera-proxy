@@ -89,6 +89,9 @@ type CLIArgs struct {
 	apiLogin            string
 	apiPassword         string
 	apiAddress          string
+	apiClientType       string
+	apiClientVersion    string
+	apiUserAgent        string
 	bootstrapDNS        *CSVArg
 	refresh             time.Duration
 	refreshRetry        time.Duration
@@ -122,6 +125,9 @@ func parse_args() *CLIArgs {
 	flag.StringVar(&args.proxy, "proxy", "", "sets base proxy to use for all dial-outs. "+
 		"Format: <http|https|socks5|socks5h>://[login:password@]host[:port] "+
 		"Examples: http://user:password@192.168.1.1:3128, socks5://10.0.0.1:1080")
+	flag.StringVar(&args.apiClientVersion, "api-client-version", se.DefaultSESettings.ClientVersion, "client version reported to SurfEasy API")
+	flag.StringVar(&args.apiClientType, "api-client-type", se.DefaultSESettings.ClientType, "client type reported to SurfEasy API")
+	flag.StringVar(&args.apiUserAgent, "api-user-agent", se.DefaultSESettings.UserAgent, "user agent reported to SurfEasy API")
 	flag.StringVar(&args.apiLogin, "api-login", "se0316", "SurfEasy API login")
 	flag.StringVar(&args.apiPassword, "api-password", "SILrMEPBmJuhomxWkfm3JalqHX2Eheg1YhlEZiMh8II", "SurfEasy API password")
 	flag.StringVar(&args.apiAddress, "api-address", "", fmt.Sprintf("override IP address of %s", API_DOMAIN))
@@ -252,6 +258,9 @@ func run() int {
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	})
+	seclient.Settings.ClientType = args.apiClientType
+	seclient.Settings.ClientVersion = args.apiClientVersion
+	seclient.Settings.UserAgent = args.apiUserAgent
 	if err != nil {
 		mainLogger.Critical("Unable to construct SEClient: %v", err)
 		return 8
