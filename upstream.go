@@ -191,8 +191,41 @@ func (d *ProxyDialer) Dial(network, address string) (net.Conn, error) {
 }
 
 func roundtrip(conn net.Conn, req *http.Request) (*http.Response, error) {
-	if err := req.Write(conn); err != nil {
-		return nil, fmt.Errorf("failed connect req: %v", err)
+	rawreq, err := httputil.DumpRequest(req, false)
+	if err != nil {
+		return nil, err
 	}
-	return http.ReadResponse(bufio.NewReader(conn), req)
+
+	_, err = conn.Write(rawreq)
+	if err != nil {
+		return nil, err
+	}
+
+	// read byte by byte until crlf to avoid reading
+	// more than just the request line:
+	// github.com/saucelabs/forwarder/issues/616
+	endOfResponse := []byte("\r\n\r\n")
+	buf := &bytes.Buffer{}
+	b := make([]byte, 1)
+	for {
+		n, err := r.Read(b)
+		if n < 1 && err == nil {
+			continue
+		}
+
+		buf.Write(b)
+		sl := buf.Bytes()
+		if len(sl) < len(endOfResponse) {
+			continue
+		}
+
+		if bytes.Equal(sl[len(sl)-4:], endOfResponse) {
+			break
+		}
+
+		if err != nil {
+			return nil, err
+		}
+	}
+	return http.ReadResponse(bufio.NewReader(buf), req)
 }
