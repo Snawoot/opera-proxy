@@ -159,11 +159,9 @@ func (d *ProxyDialer) DialContext(ctx context.Context, network, address string) 
 	req := &http.Request{
 		Method:     PROXY_CONNECT_METHOD,
 		Proto:      "HTTP/1.1",
-		ProtoMajor: 1,
-		ProtoMinor: 1,
-		RequestURI: address,
+		URL:        &url.URL{Opaque: dest},
 		Host:       address,
-		Header: http.Header{
+		Header:     http.Header{
 			PROXY_HOST_HEADER: []string{address},
 		},
 	}
@@ -172,17 +170,7 @@ func (d *ProxyDialer) DialContext(ctx context.Context, network, address string) 
 		req.Header.Set(PROXY_AUTHORIZATION_HEADER, d.auth())
 	}
 
-	rawreq, err := httputil.DumpRequest(req, false)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = conn.Write(rawreq)
-	if err != nil {
-		return nil, err
-	}
-
-	proxyResp, err := readResponse(conn, req)
+	proxyResp, err := roundtrip(conn, req)
 	if err != nil {
 		return nil, err
 	}
@@ -202,29 +190,9 @@ func (d *ProxyDialer) Dial(network, address string) (net.Conn, error) {
 	return d.DialContext(context.Background(), network, address)
 }
 
-func readResponse(r io.Reader, req *http.Request) (*http.Response, error) {
-	endOfResponse := []byte("\r\n\r\n")
-	buf := &bytes.Buffer{}
-	b := make([]byte, 1)
-	for {
-		n, err := r.Read(b)
-		if n < 1 && err == nil {
-			continue
-		}
-
-		buf.Write(b)
-		sl := buf.Bytes()
-		if len(sl) < len(endOfResponse) {
-			continue
-		}
-
-		if bytes.Equal(sl[len(sl)-4:], endOfResponse) {
-			break
-		}
-
-		if err != nil {
-			return nil, err
-		}
+func roundtrip(conn net.Conn, req *http.Request) (*http.Response, error) {
+	if err := req.Write(conn); err != nil {
+		return nil, fmt.Errorf("failed connect req: %v", err)
 	}
-	return http.ReadResponse(bufio.NewReader(buf), req)
+	return http.ReadResponse(bufio.NewReader(conn), req)
 }
