@@ -159,7 +159,7 @@ func (d *ProxyDialer) DialContext(ctx context.Context, network, address string) 
 	req := &http.Request{
 		Method:     PROXY_CONNECT_METHOD,
 		Proto:      "HTTP/1.1",
-		URL:        &url.URL{Opaque: dest},
+		URL:        &url.URL{Opaque: address},
 		Host:       address,
 		Header:     http.Header{
 			PROXY_HOST_HEADER: []string{address},
