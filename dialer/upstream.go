@@ -1,4 +1,4 @@
-package main
+package dialer
 
 import (
 	"bufio"
@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -47,10 +48,10 @@ CV4Ks2dH/hzg1cEo70qLRDEmBDeNiXQ2Lu+lIg+DdEmSx/cQwgwp+7e9un/jX9Wf
 `
 )
 
-var UpstreamBlockedError = errors.New("blocked by upstream")
-
 var missingLinkDER, _ = pem.Decode([]byte(MISSING_CHAIN_CERT))
 var missingLink, _ = x509.ParseCertificate(missingLinkDER.Bytes)
+
+type stringCb = func() (string, error)
 
 type Dialer interface {
 	Dial(network, address string) (net.Conn, error)
@@ -62,15 +63,15 @@ type ContextDialer interface {
 }
 
 type ProxyDialer struct {
-	address                string
-	tlsServerName          string
-	auth                   AuthProvider
+	address                stringCb
+	tlsServerName          stringCb
+	auth                   stringCb
 	next                   ContextDialer
 	intermediateWorkaround bool
 	caPool                 *x509.CertPool
 }
 
-func NewProxyDialer(address, tlsServerName string, auth AuthProvider, intermediateWorkaround bool, caPool *x509.CertPool, nextDialer ContextDialer) *ProxyDialer {
+func NewProxyDialer(address, tlsServerName, auth stringCb, intermediateWorkaround bool, caPool *x509.CertPool, nextDialer ContextDialer) *ProxyDialer {
 	return &ProxyDialer{
 		address:                address,
 		tlsServerName:          tlsServerName,
@@ -85,7 +86,7 @@ func ProxyDialerFromURL(u *url.URL, next ContextDialer) (*ProxyDialer, error) {
 	host := u.Hostname()
 	port := u.Port()
 	tlsServerName := ""
-	var auth AuthProvider = nil
+	var auth stringCb = nil
 
 	switch strings.ToLower(u.Scheme) {
 	case "http":
@@ -106,12 +107,9 @@ func ProxyDialerFromURL(u *url.URL, next ContextDialer) (*ProxyDialer, error) {
 	if u.User != nil {
 		username := u.User.Username()
 		password, _ := u.User.Password()
-		authHeader := basic_auth_header(username, password)
-		auth = func() string {
-			return authHeader
-		}
+		auth = WrapStringToCb(BasicAuthHeader(username, password))
 	}
-	return NewProxyDialer(address, tlsServerName, auth, false, nil, next), nil
+	return NewProxyDialer(WrapStringToCb(address), WrapStringToCb(tlsServerName), auth, false, nil, next), nil
 }
 
 func (d *ProxyDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
@@ -121,12 +119,20 @@ func (d *ProxyDialer) DialContext(ctx context.Context, network, address string) 
 		return nil, errors.New("bad network specified for DialContext: only tcp is supported")
 	}
 
-	conn, err := d.next.DialContext(ctx, "tcp", d.address)
+	uAddress, err := d.address()
+	if err != nil {
+		return nil, err
+	}
+	conn, err := d.next.DialContext(ctx, "tcp", uAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	if d.tlsServerName != "" {
+	uTLSServerName, err := d.tlsServerName()
+	if err != nil {
+		return nil, err
+	}
+	if uTLSServerName != "" {
 		// Custom cert verification logic:
 		// DO NOT send SNI extension of TLS ClientHello
 		// DO peer certificate verification against specified servername
@@ -135,7 +141,7 @@ func (d *ProxyDialer) DialContext(ctx context.Context, network, address string) 
 			InsecureSkipVerify: true,
 			VerifyConnection: func(cs tls.ConnectionState) error {
 				opts := x509.VerifyOptions{
-					DNSName:       d.tlsServerName,
+					DNSName:       uTLSServerName,
 					Intermediates: x509.NewCertPool(),
 					Roots:         d.caPool,
 				}
@@ -169,7 +175,11 @@ func (d *ProxyDialer) DialContext(ctx context.Context, network, address string) 
 	}
 
 	if d.auth != nil {
-		req.Header.Set(PROXY_AUTHORIZATION_HEADER, d.auth())
+		auth, err := d.auth()
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set(PROXY_AUTHORIZATION_HEADER, auth)
 	}
 
 	rawreq, err := httputil.DumpRequest(req, false)
@@ -188,10 +198,6 @@ func (d *ProxyDialer) DialContext(ctx context.Context, network, address string) 
 	}
 
 	if proxyResp.StatusCode != http.StatusOK {
-		if proxyResp.StatusCode == http.StatusForbidden &&
-			proxyResp.Header.Get("X-Hola-Error") == "Forbidden Host" {
-			return nil, UpstreamBlockedError
-		}
 		return nil, errors.New(fmt.Sprintf("bad response from upstream proxy server: %s", proxyResp.Status))
 	}
 
@@ -227,4 +233,15 @@ func readResponse(r io.Reader, req *http.Request) (*http.Response, error) {
 		}
 	}
 	return http.ReadResponse(bufio.NewReader(buf), req)
+}
+
+func BasicAuthHeader(login, password string) string {
+	return "Basic " + base64.StdEncoding.EncodeToString(
+		[]byte(login+":"+password))
+}
+
+func WrapStringToCb(s string) func() (string, error) {
+	return func() (string, error) {
+		return s, nil
+	}
 }

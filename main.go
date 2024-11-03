@@ -22,6 +22,10 @@ import (
 
 	xproxy "golang.org/x/net/proxy"
 
+	"github.com/Snawoot/opera-proxy/clock"
+	"github.com/Snawoot/opera-proxy/dialer"
+	"github.com/Snawoot/opera-proxy/handler"
+	clog "github.com/Snawoot/opera-proxy/log"
 	se "github.com/Snawoot/opera-proxy/seclient"
 )
 
@@ -151,12 +155,12 @@ func parse_args() *CLIArgs {
 }
 
 func proxyFromURLWrapper(u *url.URL, next xproxy.Dialer) (xproxy.Dialer, error) {
-	cdialer, ok := next.(ContextDialer)
+	cdialer, ok := next.(dialer.ContextDialer)
 	if !ok {
 		return nil, errors.New("only context dialers are accepted")
 	}
 
-	return ProxyDialerFromURL(u, cdialer)
+	return dialer.ProxyDialerFromURL(u, cdialer)
 }
 
 func run() int {
@@ -166,19 +170,19 @@ func run() int {
 		return 0
 	}
 
-	logWriter := NewLogWriter(os.Stderr)
+	logWriter := clog.NewLogWriter(os.Stderr)
 	defer logWriter.Close()
 
-	mainLogger := NewCondLogger(log.New(logWriter, "MAIN    : ",
+	mainLogger := clog.NewCondLogger(log.New(logWriter, "MAIN    : ",
 		log.LstdFlags|log.Lshortfile),
 		args.verbosity)
-	proxyLogger := NewCondLogger(log.New(logWriter, "PROXY   : ",
+	proxyLogger := clog.NewCondLogger(log.New(logWriter, "PROXY   : ",
 		log.LstdFlags|log.Lshortfile),
 		args.verbosity)
 
 	mainLogger.Info("opera-proxy client version %s is starting...", version)
 
-	var dialer ContextDialer = &net.Dialer{
+	var d dialer.ContextDialer = &net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
 	}
@@ -191,22 +195,22 @@ func run() int {
 			mainLogger.Critical("Unable to parse base proxy URL: %v", err)
 			return 6
 		}
-		pxDialer, err := xproxy.FromURL(proxyURL, dialer)
+		pxDialer, err := xproxy.FromURL(proxyURL, d)
 		if err != nil {
 			mainLogger.Critical("Unable to instantiate base proxy dialer: %v", err)
 			return 7
 		}
-		dialer = pxDialer.(ContextDialer)
+		d = pxDialer.(dialer.ContextDialer)
 	}
 
-	seclientDialer := dialer
+	seclientDialer := d
 	if args.apiAddress != "" || len(args.bootstrapDNS.values) > 0 {
 		var apiAddress string
 		if args.apiAddress != "" {
 			apiAddress = args.apiAddress
 			mainLogger.Info("Using fixed API host IP address = %s", apiAddress)
 		} else {
-			resolver, err := NewResolver(args.bootstrapDNS.values, args.timeout)
+			resolver, err := dialer.NewResolver(args.bootstrapDNS.values, args.timeout)
 			if err != nil {
 				mainLogger.Critical("Unable to instantiate DNS resolver: %v", err)
 				return 4
@@ -234,7 +238,7 @@ func run() int {
 			apiAddress = addrs[0].String()
 			mainLogger.Info("Discovered address of API host = %s", apiAddress)
 		}
-		seclientDialer = NewFixedDialer(apiAddress, dialer)
+		seclientDialer = dialer.NewFixedDialer(apiAddress, d)
 	}
 
 	// Dialing w/o SNI, receiving self-signed certificate, so skip verification.
@@ -303,7 +307,7 @@ func run() int {
 		return 13
 	}
 
-	runTicker(context.Background(), args.refresh, args.refreshRetry, func(ctx context.Context) error {
+	clock.RunTicker(context.Background(), args.refresh, args.refreshRetry, func(ctx context.Context) error {
 		mainLogger.Info("Refreshing login...")
 		reqCtx, cl := context.WithTimeout(ctx, args.timeout)
 		defer cl()
@@ -327,9 +331,6 @@ func run() int {
 	})
 
 	endpoint := ips[0]
-	auth := func() string {
-		return basic_auth_header(seclient.GetProxyCredentials())
-	}
 
 	var caPool *x509.CertPool
 	if args.caFile != "" {
@@ -345,18 +346,26 @@ func run() int {
 		}
 	}
 
-	handlerDialer := NewProxyDialer(endpoint.NetAddr(), fmt.Sprintf("%s0.%s", args.country, PROXY_SUFFIX), auth, args.certChainWorkaround, caPool, dialer)
+	handlerDialer := dialer.NewProxyDialer(
+		dialer.WrapStringToCb(endpoint.NetAddr()),
+		dialer.WrapStringToCb(fmt.Sprintf("%s0.%s", args.country, PROXY_SUFFIX)),
+		func() (string, error) {
+			return dialer.BasicAuthHeader(seclient.GetProxyCredentials()), nil
+		},
+		args.certChainWorkaround,
+		caPool,
+		d)
 	mainLogger.Info("Endpoint: %s", endpoint.NetAddr())
 	mainLogger.Info("Starting proxy server...")
-	handler := NewProxyHandler(handlerDialer, proxyLogger)
+	h := handler.NewProxyHandler(handlerDialer, proxyLogger)
 	mainLogger.Info("Init complete.")
-	err = http.ListenAndServe(args.bindAddress, handler)
+	err = http.ListenAndServe(args.bindAddress, h)
 	mainLogger.Critical("Server terminated with a reason: %v", err)
 	mainLogger.Info("Shutting down...")
 	return 0
 }
 
-func printCountries(logger *CondLogger, timeout time.Duration, seclient *se.SEClient) int {
+func printCountries(logger *clog.CondLogger, timeout time.Duration, seclient *se.SEClient) int {
 	ctx, cl := context.WithTimeout(context.Background(), timeout)
 	defer cl()
 	list, err := seclient.GeoList(ctx)
@@ -380,7 +389,7 @@ func printProxies(ips []se.SEIPEntry, seclient *se.SEClient) int {
 	login, password := seclient.GetProxyCredentials()
 	fmt.Println("Proxy login:", login)
 	fmt.Println("Proxy password:", password)
-	fmt.Println("Proxy-Authorization:", basic_auth_header(login, password))
+	fmt.Println("Proxy-Authorization:", dialer.BasicAuthHeader(login, password))
 	fmt.Println("")
 	wr.Write([]string{"host", "ip_address", "port"})
 	for i, ip := range ips {
