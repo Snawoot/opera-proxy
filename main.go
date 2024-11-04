@@ -14,7 +14,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/netip"
 	"net/url"
 	"os"
 	"strings"
@@ -204,41 +203,17 @@ func run() int {
 	}
 
 	seclientDialer := d
-	if args.apiAddress != "" || len(args.bootstrapDNS.values) > 0 {
-		var apiAddress string
-		if args.apiAddress != "" {
-			apiAddress = args.apiAddress
-			mainLogger.Info("Using fixed API host IP address = %s", apiAddress)
-		} else {
-			resolver, err := dialer.NewResolver(args.bootstrapDNS.values, args.timeout)
-			if err != nil {
-				mainLogger.Critical("Unable to instantiate DNS resolver: %v", err)
-				return 4
-			}
-
-			mainLogger.Info("Discovering API IP address...")
-			addrs, err := func() ([]netip.Addr, error) {
-				ctx, cancel := context.WithTimeout(context.Background(), args.timeout)
-				defer cancel()
-				defer func() {
-					resolver = nil
-				}()
-				defer resolver.Close()
-				return resolver.LookupNetIP(ctx, "ip4", API_DOMAIN)
-			}()
-			if err != nil {
-				mainLogger.Critical("Unable to resolve API server address: %v", err)
-				return 14
-			}
-			if len(addrs) == 0 {
-				mainLogger.Critical("Unable to resolve %s with specified bootstrap DNS", API_DOMAIN)
-				return 14
-			}
-
-			apiAddress = addrs[0].String()
-			mainLogger.Info("Discovered address of API host = %s", apiAddress)
+	if args.apiAddress != "" {
+		mainLogger.Info("Using fixed API host IP address = %s", args.apiAddress)
+		seclientDialer = dialer.NewFixedDialer(args.apiAddress, d)
+	} else if len(args.bootstrapDNS.values) > 0 {
+		resolver, err := dialer.NewResolver(args.bootstrapDNS.values, args.timeout)
+		if err != nil {
+			mainLogger.Critical("Unable to instantiate DNS resolver: %v", err)
+			return 4
 		}
-		seclientDialer = dialer.NewFixedDialer(apiAddress, d)
+		defer resolver.Close()
+		seclientDialer = dialer.NewResolvingDialer(resolver, d)
 	}
 
 	// Dialing w/o SNI, receiving self-signed certificate, so skip verification.
