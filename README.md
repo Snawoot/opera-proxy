@@ -100,6 +100,8 @@ eu3.sec-tunnel.com,77.111.244.22,443
 | cafile | String | use custom CA certificate bundle file |
 | certchain-workaround | Boolean | add bundled cross-signed intermediate cert to certchain to make it check out on old systems (default true) |
 | country | String | desired proxy location (default "EU") |
+| init-retries | Number | number of attempts for initialization steps, zero for unlimited retry |
+| init-retry-interval | Duration | delay between initialization retries (default 5s) |
 | list-countries | - | list available countries and exit |
 | list-proxies | - | output proxy list and exit |
 | proxy | String | sets base proxy to use for all dial-outs. Format: `<http\|https\|socks5\|socks5h>://[login:password@]host[:port]` Examples: `http://user:password@192.168.1.1:3128`, `socks5://10.0.0.1:1080` |

@@ -142,7 +142,7 @@ func parse_args() *CLIArgs {
 			"Examples: https://1.1.1.1/dns-query,quic://dns.adguard.com")
 	flag.DurationVar(&args.refresh, "refresh", 4*time.Hour, "login refresh interval")
 	flag.DurationVar(&args.refreshRetry, "refresh-retry", 5*time.Second, "login refresh retry interval")
-	flag.IntVar(&args.initRetries, "init-retries", 0, "initialization steps attempts, zero for unlimited retry")
+	flag.IntVar(&args.initRetries, "init-retries", 0, "number of attempts for initialization steps, zero for unlimited retry")
 	flag.DurationVar(&args.initRetryInterval, "init-retry-interval", 5 * time.Second, "delay between initialization retries")
 	flag.BoolVar(&args.certChainWorkaround, "certchain-workaround", true,
 		"add bundled cross-signed intermediate cert to certchain to make it check out on old systems")
