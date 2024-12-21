@@ -102,6 +102,7 @@ type CLIArgs struct {
 	initRetryInterval   time.Duration
 	certChainWorkaround bool
 	caFile              string
+	fakeSNI             string
 }
 
 func parse_args() *CLIArgs {
@@ -147,6 +148,7 @@ func parse_args() *CLIArgs {
 	flag.BoolVar(&args.certChainWorkaround, "certchain-workaround", true,
 		"add bundled cross-signed intermediate cert to certchain to make it check out on old systems")
 	flag.StringVar(&args.caFile, "cafile", "", "use custom CA certificate bundle file")
+	flag.StringVar(&args.fakeSNI, "fake-SNI", "", "domain name to use as SNI in communications with servers")
 	flag.Parse()
 	if args.country == "" {
 		arg_fail("Country can't be empty string.")
@@ -223,7 +225,7 @@ func run() int {
 	// Dialing w/o SNI, receiving self-signed certificate, so skip verification.
 	// Either way we'll validate certificate of actual proxy server.
 	tlsConfig := &tls.Config{
-		ServerName:         "",
+		ServerName:         args.fakeSNI,
 		InsecureSkipVerify: true,
 	}
 	seclient, err := se.NewSEClient(args.apiLogin, args.apiPassword, &http.Transport{
@@ -337,6 +339,7 @@ func run() int {
 	handlerDialer := dialer.NewProxyDialer(
 		dialer.WrapStringToCb(endpoint.NetAddr()),
 		dialer.WrapStringToCb(fmt.Sprintf("%s0.%s", args.country, PROXY_SUFFIX)),
+		dialer.WrapStringToCb(args.fakeSNI),
 		func() (string, error) {
 			return dialer.BasicAuthHeader(seclient.GetProxyCredentials()), nil
 		},

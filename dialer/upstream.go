@@ -65,16 +65,18 @@ type ContextDialer interface {
 type ProxyDialer struct {
 	address                stringCb
 	tlsServerName          stringCb
+	fakeSNI                stringCb
 	auth                   stringCb
 	next                   ContextDialer
 	intermediateWorkaround bool
 	caPool                 *x509.CertPool
 }
 
-func NewProxyDialer(address, tlsServerName, auth stringCb, intermediateWorkaround bool, caPool *x509.CertPool, nextDialer ContextDialer) *ProxyDialer {
+func NewProxyDialer(address, tlsServerName, fakeSNI, auth stringCb, intermediateWorkaround bool, caPool *x509.CertPool, nextDialer ContextDialer) *ProxyDialer {
 	return &ProxyDialer{
 		address:                address,
 		tlsServerName:          tlsServerName,
+		fakeSNI:                fakeSNI,
 		auth:                   auth,
 		next:                   nextDialer,
 		intermediateWorkaround: intermediateWorkaround,
@@ -109,7 +111,14 @@ func ProxyDialerFromURL(u *url.URL, next ContextDialer) (*ProxyDialer, error) {
 		password, _ := u.User.Password()
 		auth = WrapStringToCb(BasicAuthHeader(username, password))
 	}
-	return NewProxyDialer(WrapStringToCb(address), WrapStringToCb(tlsServerName), auth, false, nil, next), nil
+	return NewProxyDialer(
+		WrapStringToCb(address),
+		WrapStringToCb(tlsServerName),
+		WrapStringToCb(tlsServerName),
+		auth,
+		false,
+		nil,
+		next), nil
 }
 
 func (d *ProxyDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
@@ -132,12 +141,16 @@ func (d *ProxyDialer) DialContext(ctx context.Context, network, address string) 
 	if err != nil {
 		return nil, err
 	}
+	fakeSNI, err := d.fakeSNI()
+	if err != nil {
+		return nil, err
+	}
 	if uTLSServerName != "" {
 		// Custom cert verification logic:
 		// DO NOT send SNI extension of TLS ClientHello
 		// DO peer certificate verification against specified servername
 		conn = tls.Client(conn, &tls.Config{
-			ServerName:         "",
+			ServerName:         fakeSNI,
 			InsecureSkipVerify: true,
 			VerifyConnection: func(cs tls.ConnectionState) error {
 				opts := x509.VerifyOptions{
