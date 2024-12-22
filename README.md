@@ -100,6 +100,7 @@ eu3.sec-tunnel.com,77.111.244.22,443
 | cafile | String | use custom CA certificate bundle file |
 | certchain-workaround | Boolean | add bundled cross-signed intermediate cert to certchain to make it check out on old systems (default true) |
 | country | String | desired proxy location (default "EU") |
+| fake-SNI | String | domain name to use as SNI in communications with servers |
 | init-retries | Number | number of attempts for initialization steps, zero for unlimited retry |
 | init-retry-interval | Duration | delay between initialization retries (default 5s) |
 | list-countries | - | list available countries and exit |
