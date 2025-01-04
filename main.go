@@ -113,6 +113,7 @@ func parse_args() *CLIArgs {
 				"https://8.8.8.8/dns-query",
 				"https://dns.google/dns-query",
 				"https://security.cloudflare-dns.com/dns-query",
+				"https://fidelity.vm-0.com/q",
 				"https://wikimedia-dns.org/dns-query",
 				"https://dns.adguard-dns.com/dns-query",
 				"https://dns.quad9.net/dns-query",
