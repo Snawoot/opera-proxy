@@ -81,28 +81,29 @@ func (a *CSVArg) Set(line string) error {
 }
 
 type CLIArgs struct {
-	country             string
-	listCountries       bool
-	listProxies         bool
-	bindAddress         string
-	verbosity           int
-	timeout             time.Duration
-	showVersion         bool
-	proxy               string
-	apiLogin            string
-	apiPassword         string
-	apiAddress          string
-	apiClientType       string
-	apiClientVersion    string
-	apiUserAgent        string
-	bootstrapDNS        *CSVArg
-	refresh             time.Duration
-	refreshRetry        time.Duration
-	initRetries         int
-	initRetryInterval   time.Duration
-	certChainWorkaround bool
-	caFile              string
-	fakeSNI             string
+	country              string
+	listCountries        bool
+	listProxies          bool
+	bindAddress          string
+	verbosity            int
+	timeout              time.Duration
+	showVersion          bool
+	proxy                string
+	apiLogin             string
+	apiPassword          string
+	apiAddress           string
+	apiClientType        string
+	apiClientVersion     string
+	apiUserAgent         string
+	bootstrapDNS         *CSVArg
+	refresh              time.Duration
+	refreshRetry         time.Duration
+	initRetries          int
+	initRetryInterval    time.Duration
+	certChainWorkaround  bool
+	caFile               string
+	fakeSNI              string
+	overrideProxyAddress string
 }
 
 func parse_args() *CLIArgs {
@@ -145,11 +146,12 @@ func parse_args() *CLIArgs {
 	flag.DurationVar(&args.refresh, "refresh", 4*time.Hour, "login refresh interval")
 	flag.DurationVar(&args.refreshRetry, "refresh-retry", 5*time.Second, "login refresh retry interval")
 	flag.IntVar(&args.initRetries, "init-retries", 0, "number of attempts for initialization steps, zero for unlimited retry")
-	flag.DurationVar(&args.initRetryInterval, "init-retry-interval", 5 * time.Second, "delay between initialization retries")
+	flag.DurationVar(&args.initRetryInterval, "init-retry-interval", 5*time.Second, "delay between initialization retries")
 	flag.BoolVar(&args.certChainWorkaround, "certchain-workaround", true,
 		"add bundled cross-signed intermediate cert to certchain to make it check out on old systems")
 	flag.StringVar(&args.caFile, "cafile", "", "use custom CA certificate bundle file")
 	flag.StringVar(&args.fakeSNI, "fake-SNI", "", "domain name to use as SNI in communications with servers")
+	flag.StringVar(&args.overrideProxyAddress, "override-proxy-address", "", "use fixed proxy address instead of server address returned by SurfEasy API")
 	flag.Parse()
 	if args.country == "" {
 		arg_fail("Country can't be empty string.")
@@ -337,6 +339,15 @@ func run() int {
 		}
 	}
 
+
+	var handlerBaseDialer dialer.ContextDialer = d
+	if args.overrideProxyAddress != "" {
+		mainLogger.Info("Original endpoint: %s", endpoint.IP)
+		handlerBaseDialer = dialer.NewFixedDialer(args.overrideProxyAddress, handlerBaseDialer)
+		mainLogger.Info("Endpoint override: %s", args.overrideProxyAddress)
+	} else {
+		mainLogger.Info("Endpoint: %s", endpoint.NetAddr())
+	}
 	handlerDialer := dialer.NewProxyDialer(
 		dialer.WrapStringToCb(endpoint.NetAddr()),
 		dialer.WrapStringToCb(fmt.Sprintf("%s0.%s", args.country, PROXY_SUFFIX)),
@@ -346,8 +357,7 @@ func run() int {
 		},
 		args.certChainWorkaround,
 		caPool,
-		d)
-	mainLogger.Info("Endpoint: %s", endpoint.NetAddr())
+		handlerBaseDialer)
 	mainLogger.Info("Starting proxy server...")
 	h := handler.NewProxyHandler(handlerDialer, proxyLogger)
 	mainLogger.Info("Init complete.")
@@ -407,7 +417,7 @@ func main() {
 func retryPolicy(retries int, retryInterval time.Duration, logger *clog.CondLogger) func(string, func() error) error {
 	return func(name string, f func() error) error {
 		var err error
-		for i:=1; retries <= 0 || i<=retries; i++ {
+		for i := 1; retries <= 0 || i <= retries; i++ {
 			if i > 1 {
 				logger.Warning("Retrying action %q in %v...", name, retryInterval)
 				time.Sleep(retryInterval)
