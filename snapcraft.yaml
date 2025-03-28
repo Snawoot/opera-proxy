@@ -1,21 +1,24 @@
 name: opera-proxy
-version: '1.8.0'
 summary: Standalone Opera VPN proxies client.
 description: |
   Standalone Opera VPN proxies client. Just run it and it'll start plain HTTP proxy server forwarding traffic via proxies of your choice.
 
 confinement: strict
 base: core22
+adopt-info: opera-proxy
 
 parts:
   opera-proxy:
     plugin: go
     build-snaps: [go/latest/stable]
+    build-packages:
+      - make
+      - git-core
     source: https://github.com/Snawoot/opera-proxy
     source-type: git
     override-pull: |
-      snapcraftctl pull
-      snapcraftctl set-version \
+      craftctl pull
+      craftctl set-version \
       "$(git describe --long --tags --always --match=v*.*.* | sed 's/v//')"
     override-build:
       make &&
