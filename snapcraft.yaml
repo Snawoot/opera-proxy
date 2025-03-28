@@ -17,7 +17,7 @@ parts:
     source: https://github.com/Snawoot/opera-proxy
     source-type: git
     override-pull: |
-      craftctl pull
+      craftctl default
       craftctl set-version \
       "$(git describe --long --tags --always --match=v*.*.* | sed 's/v//')"
     override-build:
