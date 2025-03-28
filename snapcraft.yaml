@@ -5,14 +5,18 @@ description: |
   Standalone Opera VPN proxies client. Just run it and it'll start plain HTTP proxy server forwarding traffic via proxies of your choice.
 
 confinement: strict
-base: core24
+base: core22
 
 parts:
   opera-proxy:
     plugin: go
-    source: .
-    build-packages:
-      - gcc
+    build-snaps: [go/latest/stable]
+    source: https://github.com/Snawoot/opera-proxy
+    source-type: git
+    override-pull: |
+      snapcraftctl pull
+      snapcraftctl set-version \
+      "$(git describe --long --tags --always --match=v*.*.* | sed 's/v//')"
     override-build:
       make &&
       cp bin/opera-proxy "$SNAPCRAFT_PART_INSTALL"
