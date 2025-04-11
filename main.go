@@ -85,6 +85,7 @@ type CLIArgs struct {
 	listCountries        bool
 	listProxies          bool
 	bindAddress          string
+	socksMode            bool
 	verbosity            int
 	timeout              time.Duration
 	showVersion          bool
@@ -125,7 +126,8 @@ func parse_args() *CLIArgs {
 	flag.StringVar(&args.country, "country", "EU", "desired proxy location")
 	flag.BoolVar(&args.listCountries, "list-countries", false, "list available countries and exit")
 	flag.BoolVar(&args.listProxies, "list-proxies", false, "output proxy list and exit")
-	flag.StringVar(&args.bindAddress, "bind-address", "127.0.0.1:18080", "HTTP proxy listen address")
+	flag.StringVar(&args.bindAddress, "bind-address", "127.0.0.1:18080", "proxy listen address")
+	flag.BoolVar(&args.socksMode, "socks-mode", false, "listen for SOCKS requests instead of HTTP")
 	flag.IntVar(&args.verbosity, "verbosity", 20, "logging verbosity "+
 		"(10 - debug, 20 - info, 30 - warning, 40 - error, 50 - critical)")
 	flag.DurationVar(&args.timeout, "timeout", 10*time.Second, "timeout for network operations")
@@ -187,6 +189,8 @@ func run() int {
 	proxyLogger := clog.NewCondLogger(log.New(logWriter, "PROXY   : ",
 		log.LstdFlags|log.Lshortfile),
 		args.verbosity)
+	socksLogger := log.New(logWriter, "SOCKS   : ",
+		log.LstdFlags|log.Lshortfile)
 
 	mainLogger.Info("opera-proxy client version %s is starting...", version)
 
@@ -339,8 +343,7 @@ func run() int {
 		}
 	}
 
-
-	var handlerBaseDialer dialer.ContextDialer = d
+	var handlerBaseDialer = d
 	if args.overrideProxyAddress != "" {
 		mainLogger.Info("Original endpoint: %s", endpoint.IP)
 		handlerBaseDialer = dialer.NewFixedDialer(args.overrideProxyAddress, handlerBaseDialer)
@@ -359,9 +362,19 @@ func run() int {
 		caPool,
 		handlerBaseDialer)
 	mainLogger.Info("Starting proxy server...")
-	h := handler.NewProxyHandler(handlerDialer, proxyLogger)
-	mainLogger.Info("Init complete.")
-	err = http.ListenAndServe(args.bindAddress, h)
+	if args.socksMode {
+		socks, initError := handler.NewSocksServer(handlerDialer, socksLogger)
+		if initError != nil {
+			mainLogger.Critical("Failed to start: %v", err)
+			return 16
+		}
+		mainLogger.Info("Init complete.")
+		err = socks.ListenAndServe("tcp", args.bindAddress)
+	} else {
+		h := handler.NewProxyHandler(handlerDialer, proxyLogger)
+		mainLogger.Info("Init complete.")
+		err = http.ListenAndServe(args.bindAddress, h)
+	}
 	mainLogger.Critical("Server terminated with a reason: %v", err)
 	mainLogger.Info("Shutting down...")
 	return 0
