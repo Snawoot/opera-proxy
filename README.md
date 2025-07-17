@@ -5,7 +5,7 @@ opera-proxy
 
 <img align="left" width="100" height="100" src="https://github.com/user-attachments/assets/aac4d29a-32b3-4e00-957c-3c7168228edc">
 
-Standalone Opera VPN client. Younger brother of [hola-proxy](https://github.com/Snawoot/hola-proxy/).
+Standalone Opera VPN client.
 
 Just run it and it'll start a plain HTTP proxy server forwarding traffic through "Opera VPN" proxies of your choice.
 By default the application listens on 127.0.0.1:18080.
