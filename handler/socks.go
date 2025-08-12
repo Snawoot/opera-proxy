@@ -1,9 +1,10 @@
 package handler
 
 import (
+	"log"
+
 	"github.com/Snawoot/opera-proxy/dialer"
 	"github.com/armon/go-socks5"
-	"log"
 )
 
 func NewSocksServer(dialer dialer.ContextDialer, logger *log.Logger) (*socks5.Server, error) {

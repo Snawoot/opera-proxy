@@ -25,6 +25,7 @@ import (
 	"github.com/Snawoot/opera-proxy/dialer"
 	"github.com/Snawoot/opera-proxy/handler"
 	clog "github.com/Snawoot/opera-proxy/log"
+	"github.com/Snawoot/opera-proxy/resolver"
 	se "github.com/Snawoot/opera-proxy/seclient"
 )
 
@@ -142,9 +143,9 @@ func parse_args() *CLIArgs {
 	flag.StringVar(&args.apiPassword, "api-password", "SILrMEPBmJuhomxWkfm3JalqHX2Eheg1YhlEZiMh8II", "SurfEasy API password")
 	flag.StringVar(&args.apiAddress, "api-address", "", fmt.Sprintf("override IP address of %s", API_DOMAIN))
 	flag.Var(args.bootstrapDNS, "bootstrap-dns",
-		"comma-separated list of DNS/DoH/DoT/DoQ resolvers for initial discovery of SurfEasy API address. "+
-			"See https://github.com/ameshkov/dnslookup/ for upstream DNS URL format. "+
-			"Examples: https://1.1.1.1/dns-query,quic://dns.adguard.com")
+		"comma-separated list of DNS/DoH/DoT resolvers for initial discovery of SurfEasy API address. "+
+			"Supported schemes are: dns://, https://, tls://. "+
+			"Examples: https://1.1.1.1/dns-query,tls://9.9.9.9:853")
 	flag.DurationVar(&args.refresh, "refresh", 4*time.Hour, "login refresh interval")
 	flag.DurationVar(&args.refreshRetry, "refresh-retry", 5*time.Second, "login refresh retry interval")
 	flag.IntVar(&args.initRetries, "init-retries", 0, "number of attempts for initialization steps, zero for unlimited retry")
@@ -220,12 +221,11 @@ func run() int {
 		mainLogger.Info("Using fixed API host IP address = %s", args.apiAddress)
 		seclientDialer = dialer.NewFixedDialer(args.apiAddress, d)
 	} else if len(args.bootstrapDNS.values) > 0 {
-		resolver, err := dialer.NewResolver(args.bootstrapDNS.values, args.timeout)
+		resolver, err := resolver.FastFromURLs(args.bootstrapDNS.values...)
 		if err != nil {
 			mainLogger.Critical("Unable to instantiate DNS resolver: %v", err)
 			return 4
 		}
-		defer resolver.Close()
 		seclientDialer = dialer.NewResolvingDialer(resolver, d)
 	}
 
