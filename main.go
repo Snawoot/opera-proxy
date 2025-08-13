@@ -144,7 +144,7 @@ func parse_args() *CLIArgs {
 	flag.StringVar(&args.apiAddress, "api-address", "", fmt.Sprintf("override IP address of %s", API_DOMAIN))
 	flag.Var(args.bootstrapDNS, "bootstrap-dns",
 		"comma-separated list of DNS/DoH/DoT resolvers for initial discovery of SurfEasy API address. "+
-			"Supported schemes are: dns://, https://, tls://. "+
+			"Supported schemes are: dns://, https://, tls://, tcp://. "+
 			"Examples: https://1.1.1.1/dns-query,tls://9.9.9.9:853")
 	flag.DurationVar(&args.refresh, "refresh", 4*time.Hour, "login refresh interval")
 	flag.DurationVar(&args.refreshRetry, "refresh-retry", 5*time.Second, "login refresh retry interval")
