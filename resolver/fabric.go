@@ -14,30 +14,30 @@ func FromURL(u string) (*net.Resolver, error) {
 	if err != nil {
 		return nil, err
 	}
+	host := parsed.Hostname()
+	port := parsed.Port()
 	switch strings.ToLower(parsed.Scheme) {
 	case "", "dns":
-		host := parsed.Hostname()
-		port := parsed.Port()
 		if port == "" {
 			port = "53"
 		}
 		return NewPlainResolver(net.JoinHostPort(host, port)), nil
 	case "tcp":
-		host := parsed.Hostname()
-		port := parsed.Port()
 		if port == "" {
 			port = "53"
 		}
 		return NewTCPResolver(net.JoinHostPort(host, port)), nil
 	case "http", "https":
-		return dns.NewDoHResolver(u)
+		if port == "" {
+			port = "443"
+		}
+		return dns.NewDoHResolver(u, dns.DoHAddresses(net.JoinHostPort(host, port)))
 	case "tls":
-		host := parsed.Hostname()
-		port := parsed.Port()
 		if port == "" {
 			port = "853"
 		}
-		return dns.NewDoTResolver(net.JoinHostPort(host, port))
+		hp := net.JoinHostPort(host, port)
+		return dns.NewDoTResolver(hp, dns.DoTAddresses(hp))
 	default:
 		return nil, errors.New("not implemented")
 	}

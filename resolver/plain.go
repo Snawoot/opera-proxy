@@ -21,7 +21,7 @@ func NewTCPResolver(addr string) *net.Resolver {
 		PreferGo: true,
 		Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
 			dnet := "tcp"
-			switch (network) {
+			switch network {
 			case "udp4":
 				dnet = "tcp4"
 			case "udp6":
