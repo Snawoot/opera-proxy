@@ -9,7 +9,7 @@ require (
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ncruces/go-dns v1.2.7
-	golang.org/x/net v0.39.0
+	golang.org/x/net v0.43.0
 )
 
 require github.com/hashicorp/errwrap v1.1.0 // indirect
