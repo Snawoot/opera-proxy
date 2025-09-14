@@ -343,7 +343,6 @@ func run() int {
 		err = try("discover", func() error {
 			ctx, cl := context.WithTimeout(context.Background(), args.timeout)
 			defer cl()
-			// TODO: learn about requested_geo value format
 			res, err := seclient.Discover(ctx, fmt.Sprintf("\"%s\",,", args.country))
 			if err != nil {
 				return err
@@ -355,6 +354,8 @@ func run() int {
 				ips = res
 				return nil
 			}
+
+			mainLogger.Info("Discovered endpoints: %v. Starting server selection routine %q.", res, args.serverSelection.value)
 			var ss dialer.SelectionFunc
 			switch args.serverSelection.value {
 			case dialer.ServerSelectionFirst:
@@ -376,7 +377,15 @@ func run() int {
 			ctx, cl = context.WithTimeout(context.Background(), args.serverSelectionTimeout)
 			defer cl()
 			handlerDialer, err = ss(ctx, dialers)
-			return err
+			if err != nil {
+				return err
+			}
+			if addresser, ok := handlerDialer.(interface{ Address() (string, error) }); ok {
+				if epAddr, err := addresser.Address(); err == nil {
+					mainLogger.Info("Selected endpoint address: %s", epAddr)
+				}
+			}
+			return nil
 		})
 		if err != nil {
 			return 12

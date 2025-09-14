@@ -97,6 +97,10 @@ func (e *SEIPEntry) NetAddr() string {
 	}
 }
 
+func (e SEIPEntry) String() string {
+	return e.NetAddr()
+}
+
 type SEDiscoverResponse struct {
 	Data struct {
 		IPs []SEIPEntry `json:"ips"`
