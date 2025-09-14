@@ -109,6 +109,10 @@ eu3.sec-tunnel.com,77.111.244.22,443
 | proxy | String | sets base proxy to use for all dial-outs. Format: `<http\|https\|socks5\|socks5h>://[login:password@]host[:port]` Examples: `http://user:password@192.168.1.1:3128`, `socks5://10.0.0.1:1080` |
 | refresh | Duration | login refresh interval (default 4h0m0s) |
 | refresh-retry | Duration | login refresh retry interval (default 5s) |
+| server-selection | Enum | server selection policy (first/random/fastest) (default fastest) |
+| server-selection-dl-limit | Number | restrict amount of downloaded data per connection by fastest server selection |
+| server-selection-test-url | String | URL used for download benchmark by fastest server selection policy (default `https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js`) |
+| server-selection-timeout | Duration | timeout given for server selection function to produce result (default 30s) |
 | timeout | Duration | timeout for network operations (default 10s) |
 | verbosity | Number | logging verbosity (10 - debug, 20 - info, 30 - warning, 40 - error, 50 - critical) (default 20) |
 | version | - | show program version and exit |

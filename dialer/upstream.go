@@ -221,6 +221,10 @@ func (d *ProxyDialer) Dial(network, address string) (net.Conn, error) {
 	return d.DialContext(context.Background(), network, address)
 }
 
+func (d *ProxyDialer) Address() (string, error) {
+	return d.address()
+}
+
 func readResponse(r io.Reader, req *http.Request) (*http.Response, error) {
 	endOfResponse := []byte("\r\n\r\n")
 	buf := &bytes.Buffer{}
