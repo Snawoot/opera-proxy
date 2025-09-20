@@ -366,6 +366,9 @@ func run() int {
 				ss = dialer.NewFastestServerSelectionFunc(
 					args.serverSelectionTestURL,
 					args.serverSelectionDLLimit,
+					&tls.Config{
+						RootCAs: caPool,
+					},
 				)
 			default:
 				panic("unhandled server selection value got past parsing")

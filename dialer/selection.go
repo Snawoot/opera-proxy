@@ -2,6 +2,7 @@ package dialer
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -63,7 +64,7 @@ func SelectRandom(_ context.Context, dialers []ContextDialer) (ContextDialer, er
 	return dialers[rand.IntN(len(dialers))], nil
 }
 
-func probeDialer(ctx context.Context, dialer ContextDialer, url string, dlLimit int64) error {
+func probeDialer(ctx context.Context, dialer ContextDialer, url string, dlLimit int64, tlsClientConfig *tls.Config) error {
 	httpClient := http.Client{
 		Transport: &http.Transport{
 			MaxIdleConns:          100,
@@ -71,6 +72,8 @@ func probeDialer(ctx context.Context, dialer ContextDialer, url string, dlLimit 
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 			DialContext:           dialer.DialContext,
+			TLSClientConfig:       tlsClientConfig,
+			ForceAttemptHTTP2:     true,
 		},
 	}
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -93,7 +96,7 @@ func probeDialer(ctx context.Context, dialer ContextDialer, url string, dlLimit 
 	return err
 }
 
-func NewFastestServerSelectionFunc(url string, dlLimit int64) SelectionFunc {
+func NewFastestServerSelectionFunc(url string, dlLimit int64, tlsClientConfig *tls.Config) SelectionFunc {
 	return func(ctx context.Context, dialers []ContextDialer) (ContextDialer, error) {
 		var resErr error
 		masterNotInterested := make(chan struct{})
@@ -102,7 +105,7 @@ func NewFastestServerSelectionFunc(url string, dlLimit int64) SelectionFunc {
 		success := make(chan ContextDialer)
 		for _, dialer := range dialers {
 			go func(dialer ContextDialer) {
-				err := probeDialer(ctx, dialer, url, dlLimit)
+				err := probeDialer(ctx, dialer, url, dlLimit, tlsClientConfig)
 				if err == nil {
 					select {
 					case success <- dialer:
