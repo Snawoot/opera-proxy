@@ -10,6 +10,7 @@ import (
 )
 
 func FromURL(u string) (*net.Resolver, error) {
+begin:
 	parsed, err := url.Parse(u)
 	if err != nil {
 		return nil, err
@@ -17,7 +18,15 @@ func FromURL(u string) (*net.Resolver, error) {
 	host := parsed.Hostname()
 	port := parsed.Port()
 	switch scheme := strings.ToLower(parsed.Scheme); scheme {
-	case "", "udp", "dns":
+	case "":
+		switch {
+		case strings.HasPrefix(u, "//"):
+			u = "dns:" + u
+		default:
+			u = "dns://" + u
+		}
+		goto begin
+	case "udp", "dns":
 		if port == "" {
 			port = "53"
 		}
