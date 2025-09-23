@@ -16,7 +16,7 @@ type FastResolver struct {
 	upstreams []LookupNetIPer
 }
 
-func FastFromURLs(urls ...string) (*FastResolver, error) {
+func FastFromURLs(urls ...string) (LookupNetIPer, error) {
 	resolvers := make([]LookupNetIPer, 0, len(urls))
 	for i, u := range urls {
 		res, err := FromURL(u)
@@ -24,6 +24,9 @@ func FastFromURLs(urls ...string) (*FastResolver, error) {
 			return nil, fmt.Errorf("unable to construct resolver #%d (%q): %w", i, u, err)
 		}
 		resolvers = append(resolvers, res)
+	}
+	if len(resolvers) == 1 {
+		return resolvers[0], nil
 	}
 	return NewFastResolver(resolvers...), nil
 }
