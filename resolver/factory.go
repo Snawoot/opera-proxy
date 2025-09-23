@@ -16,8 +16,8 @@ func FromURL(u string) (*net.Resolver, error) {
 	}
 	host := parsed.Hostname()
 	port := parsed.Port()
-	switch strings.ToLower(parsed.Scheme) {
-	case "", "dns":
+	switch scheme := strings.ToLower(parsed.Scheme); scheme {
+	case "", "udp", "dns":
 		if port == "" {
 			port = "53"
 		}
@@ -27,12 +27,20 @@ func FromURL(u string) (*net.Resolver, error) {
 			port = "53"
 		}
 		return NewTCPResolver(net.JoinHostPort(host, port)), nil
-	case "http", "https":
+	case "http", "https", "doh":
 		if port == "" {
-			port = "443"
+			if scheme == "http" {
+				port = "80"
+			} else {
+				port = "443"
+			}
+		}
+		if scheme == "doh" {
+			parsed.Scheme = "https"
+			u = parsed.String()
 		}
 		return dns.NewDoHResolver(u, dns.DoHAddresses(net.JoinHostPort(host, port)))
-	case "tls":
+	case "tls", "dot":
 		if port == "" {
 			port = "853"
 		}
