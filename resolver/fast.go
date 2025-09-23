@@ -35,8 +35,8 @@ func NewFastResolver(resolvers ...LookupNetIPer) *FastResolver {
 }
 
 func (r FastResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
-	masterNotInterested := make(chan struct{})
-	defer close(masterNotInterested)
+	ctx, cl := context.WithCancel(ctx)
+	defer cl()
 	errors := make(chan error)
 	success := make(chan []netip.Addr)
 	for _, res := range r.upstreams {
@@ -45,12 +45,12 @@ func (r FastResolver) LookupNetIP(ctx context.Context, network, host string) ([]
 			if err == nil {
 				select {
 				case success <- addrs:
-				case <-masterNotInterested:
+				case <-ctx.Done():
 				}
 			} else {
 				select {
-				case errors <-err:
-				case <-masterNotInterested:
+				case errors <- err:
+				case <-ctx.Done():
 				}
 			}
 		}(res)
