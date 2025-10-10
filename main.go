@@ -114,6 +114,7 @@ type CLIArgs struct {
 	apiClientType          string
 	apiClientVersion       string
 	apiUserAgent           string
+	apiProxy               string
 	bootstrapDNS           *CSVArg
 	refresh                time.Duration
 	refreshRetry           time.Duration
@@ -164,6 +165,7 @@ func parse_args() *CLIArgs {
 	flag.StringVar(&args.apiLogin, "api-login", "se0316", "SurfEasy API login")
 	flag.StringVar(&args.apiPassword, "api-password", "SILrMEPBmJuhomxWkfm3JalqHX2Eheg1YhlEZiMh8II", "SurfEasy API password")
 	flag.StringVar(&args.apiAddress, "api-address", "", fmt.Sprintf("override IP address of %s", API_DOMAIN))
+	flag.StringVar(&args.apiProxy, "api-proxy", "", "additional proxy server used to access SurfEasy API")
 	flag.Var(args.bootstrapDNS, "bootstrap-dns",
 		"comma-separated list of DNS/DoH/DoT resolvers for initial discovery of SurfEasy API address. "+
 			"Supported schemes are: dns://, https://, tls://, tcp://. "+
@@ -241,9 +243,9 @@ func run() int {
 		}
 	}
 
+	xproxy.RegisterDialerType("http", proxyFromURLWrapper)
+	xproxy.RegisterDialerType("https", proxyFromURLWrapper)
 	if args.proxy != "" {
-		xproxy.RegisterDialerType("http", proxyFromURLWrapper)
-		xproxy.RegisterDialerType("https", proxyFromURLWrapper)
 		proxyURL, err := url.Parse(args.proxy)
 		if err != nil {
 			mainLogger.Critical("Unable to parse base proxy URL: %v", err)
@@ -258,16 +260,29 @@ func run() int {
 	}
 
 	seclientDialer := d
+	if args.apiProxy != "" {
+		apiProxyURL, err := url.Parse(args.apiProxy)
+		if err != nil {
+			mainLogger.Critical("Unable to parse base proxy URL: %v", err)
+			return 6
+		}
+		pxDialer, err := xproxy.FromURL(apiProxyURL, seclientDialer)
+		if err != nil {
+			mainLogger.Critical("Unable to instantiate base proxy dialer: %v", err)
+			return 7
+		}
+		seclientDialer = pxDialer.(dialer.ContextDialer)
+	}
 	if args.apiAddress != "" {
 		mainLogger.Info("Using fixed API host address = %s", args.apiAddress)
-		seclientDialer = dialer.NewFixedDialer(args.apiAddress, d)
+		seclientDialer = dialer.NewFixedDialer(args.apiAddress, seclientDialer)
 	} else if len(args.bootstrapDNS.values) > 0 {
 		resolver, err := resolver.FastFromURLs(args.bootstrapDNS.values...)
 		if err != nil {
 			mainLogger.Critical("Unable to instantiate DNS resolver: %v", err)
 			return 4
 		}
-		seclientDialer = dialer.NewResolvingDialer(resolver, d)
+		seclientDialer = dialer.NewResolvingDialer(resolver, seclientDialer)
 	}
 
 	// Dialing w/o SNI, receiving self-signed certificate, so skip verification.
