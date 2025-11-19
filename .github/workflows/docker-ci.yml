@@ -14,16 +14,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      -
-        name: Find Git Tag
-        id: tagger
-        uses: jimschubert/query-tag-action@v2
-        with:
-          include: 'v*'
-          exclude: '*-rc*'
-          commit-ish: 'HEAD'
-          skip-unshallow: 'true'
-          abbrev: 7
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -59,4 +49,3 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: 'GIT_DESC=${{steps.tagger.outputs.tag}}'
