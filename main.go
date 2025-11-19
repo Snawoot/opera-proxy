@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -33,10 +34,6 @@ import (
 const (
 	API_DOMAIN   = "api2.sec-tunnel.com"
 	PROXY_SUFFIX = "sec-tunnel.com"
-)
-
-var (
-	version = "undefined"
 )
 
 func perror(msg string) {
@@ -209,7 +206,7 @@ func proxyFromURLWrapper(u *url.URL, next xproxy.Dialer) (xproxy.Dialer, error) 
 func run() int {
 	args := parse_args()
 	if args.showVersion {
-		fmt.Println(version)
+		fmt.Println(version())
 		return 0
 	}
 
@@ -587,4 +584,12 @@ func retryPolicy(retries int, retryInterval time.Duration, logger *clog.CondLogg
 		logger.Critical("All attempts for action %q have failed. Last error: %v", name, err)
 		return err
 	}
+}
+
+func version() string {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "unknown"
+	}
+	return bi.Main.Version
 }
