@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -102,6 +103,7 @@ type CLIArgs struct {
 	country                string
 	listCountries          bool
 	listProxies            bool
+	dpExport               bool
 	bindAddress            string
 	socksMode              bool
 	verbosity              int
@@ -150,6 +152,7 @@ func parse_args() *CLIArgs {
 	flag.StringVar(&args.country, "country", "EU", "desired proxy location")
 	flag.BoolVar(&args.listCountries, "list-countries", false, "list available countries and exit")
 	flag.BoolVar(&args.listProxies, "list-proxies", false, "output proxy list and exit")
+	flag.BoolVar(&args.dpExport, "dp-export", false, "export configuration for dumbproxy")
 	flag.StringVar(&args.bindAddress, "bind-address", "127.0.0.1:18080", "proxy listen address")
 	flag.BoolVar(&args.socksMode, "socks-mode", false, "listen for SOCKS requests instead of HTTP")
 	flag.IntVar(&args.verbosity, "verbosity", 20, "logging verbosity "+
@@ -188,8 +191,8 @@ func parse_args() *CLIArgs {
 	if args.country == "" {
 		arg_fail("Country can't be empty string.")
 	}
-	if args.listCountries && args.listProxies {
-		arg_fail("list-countries and list-proxies flags are mutually exclusive")
+	if args.listCountries && args.listProxies || args.listCountries && args.dpExport || args.listProxies && args.dpExport {
+		arg_fail("mutually exclusive output arguments were provided")
 	}
 	return args
 }
@@ -338,6 +341,31 @@ func run() int {
 		return printCountries(try, mainLogger, args.timeout, seclient)
 	}
 
+	var ips []se.SEIPEntry
+	if args.listProxies || args.dpExport {
+		err = try("discover", func() error {
+			ctx, cl := context.WithTimeout(context.Background(), args.timeout)
+			defer cl()
+			ips, err = seclient.Discover(ctx, fmt.Sprintf("\"%s\",,", args.country))
+			if err != nil {
+				return err
+			}
+			if len(ips) == 0 {
+				return errors.New("empty endpoints list!")
+			}
+			return nil
+		})
+		if err != nil {
+			return 12
+		}
+		if args.listProxies {
+			return printProxies(ips, seclient)
+		}
+		if args.dpExport {
+			return dpExport(ips, seclient)
+		}
+	}
+
 	handlerDialerFactory := func(endpointAddr string) dialer.ContextDialer {
 		return dialer.NewProxyDialer(
 			dialer.WrapStringToCb(endpointAddr),
@@ -351,10 +379,9 @@ func run() int {
 			d)
 	}
 
-	var ips []se.SEIPEntry
 	var handlerDialer dialer.ContextDialer
 
-	if args.overrideProxyAddress == "" || args.listProxies {
+	if args.overrideProxyAddress == "" {
 		err = try("discover", func() error {
 			ctx, cl := context.WithTimeout(context.Background(), args.timeout)
 			defer cl()
@@ -364,10 +391,6 @@ func run() int {
 			}
 			if len(res) == 0 {
 				return errors.New("empty endpoints list!")
-			}
-			if args.listProxies {
-				ips = res
-				return nil
 			}
 
 			mainLogger.Info("Discovered endpoints: %v. Starting server selection routine %q.", res, args.serverSelection.value)
@@ -412,10 +435,6 @@ func run() int {
 		sanitizedEndpoint := sanitizeFixedProxyAddress(args.overrideProxyAddress)
 		handlerDialer = handlerDialerFactory(sanitizedEndpoint)
 		mainLogger.Info("Endpoint override: %s", sanitizedEndpoint)
-	}
-
-	if args.listProxies {
-		return printProxies(ips, seclient)
 	}
 
 	clock.RunTicker(context.Background(), args.refresh, args.refreshRetry, func(ctx context.Context) error {
@@ -499,6 +518,41 @@ func printProxies(ips []se.SEIPEntry, seclient *se.SEClient) int {
 				fmt.Sprintf("%d", port),
 			})
 		}
+	}
+	return 0
+}
+
+func dpExport(ips []se.SEIPEntry, seclient *se.SEClient) int {
+	wr := csv.NewWriter(os.Stdout)
+	wr.Comma = ' '
+	defer wr.Flush()
+	creds := url.UserPassword(seclient.GetProxyCredentials())
+	var gotOne bool
+	for i, ip := range ips {
+		if len(ip.Ports) == 0 {
+			continue
+		}
+		u := url.URL{
+			Scheme: "https",
+			User:   creds,
+			Host: net.JoinHostPort(
+				ip.IP,
+				strconv.Itoa(int(ip.Ports[0])),
+			),
+			RawQuery: url.Values{
+				"sni":      []string{""},
+				"peername": []string{fmt.Sprintf("%s%d.%s", strings.ToLower(ip.Geo.CountryCode), i, PROXY_SUFFIX)},
+			}.Encode(),
+		}
+		key := "proxy"
+		if gotOne {
+			key = "#proxy"
+		}
+		wr.Write([]string{
+			key,
+			u.String(),
+		})
+		gotOne = true
 	}
 	return 0
 }
