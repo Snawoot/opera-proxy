@@ -362,7 +362,7 @@ func run() int {
 			return printProxies(ips, seclient)
 		}
 		if args.dpExport {
-			return dpExport(ips, seclient)
+			return dpExport(ips, seclient, args.fakeSNI)
 		}
 	}
 
@@ -522,7 +522,7 @@ func printProxies(ips []se.SEIPEntry, seclient *se.SEClient) int {
 	return 0
 }
 
-func dpExport(ips []se.SEIPEntry, seclient *se.SEClient) int {
+func dpExport(ips []se.SEIPEntry, seclient *se.SEClient, sni string) int {
 	wr := csv.NewWriter(os.Stdout)
 	wr.Comma = ' '
 	defer wr.Flush()
@@ -540,7 +540,7 @@ func dpExport(ips []se.SEIPEntry, seclient *se.SEClient) int {
 				strconv.Itoa(int(ip.Ports[0])),
 			),
 			RawQuery: url.Values{
-				"sni":      []string{""},
+				"sni":      []string{sni},
 				"peername": []string{fmt.Sprintf("%s%d.%s", strings.ToLower(ip.Geo.CountryCode), i, PROXY_SUFFIX)},
 			}.Encode(),
 		}
