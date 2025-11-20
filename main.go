@@ -222,7 +222,7 @@ func run() int {
 	socksLogger := log.New(logWriter, "SOCKS   : ",
 		log.LstdFlags|log.Lshortfile)
 
-	mainLogger.Info("opera-proxy client version %s is starting...", version)
+	mainLogger.Info("opera-proxy client version %s is starting...", version())
 
 	var d dialer.ContextDialer = &net.Dialer{
 		Timeout:   30 * time.Second,
