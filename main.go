@@ -184,6 +184,7 @@ func parse_args() *CLIArgs {
 	flag.StringVar(&args.serverSelectionTestURL, "server-selection-test-url", "https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js",
 		"URL used for download benchmark by fastest server selection policy")
 	flag.Int64Var(&args.serverSelectionDLLimit, "server-selection-dl-limit", 0, "restrict amount of downloaded data per connection by fastest server selection")
+	flag.Func("config", "read configuration from file with space-separated keys and values", readConfig)
 	flag.Parse()
 	if args.country == "" {
 		arg_fail("Country can't be empty string.")
@@ -584,6 +585,50 @@ func retryPolicy(retries int, retryInterval time.Duration, logger *clog.CondLogg
 		logger.Critical("All attempts for action %q have failed. Last error: %v", name, err)
 		return err
 	}
+}
+
+func readConfig(filename string) error {
+	f, err := os.Open(filename)
+	if err != nil {
+		return fmt.Errorf("unable to open config file %q: %w", filename, err)
+	}
+	defer f.Close()
+	r := csv.NewReader(f)
+	r.Comma = ' '
+	r.Comment = '#'
+	r.FieldsPerRecord = -1
+	r.TrimLeadingSpace = true
+	r.ReuseRecord = true
+	for {
+		record, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("configuration file parsing failed: %w", err)
+		}
+		switch len(record) {
+		case 0:
+			continue
+		case 1:
+			if err := flag.Set(record[0], "true"); err != nil {
+				line, _ := r.FieldPos(0)
+				return fmt.Errorf("error parsing config file %q at line %d (%#v): %w", filename, line, record, err)
+			}
+		case 2:
+			if err := flag.Set(record[0], record[1]); err != nil {
+				line, _ := r.FieldPos(0)
+				return fmt.Errorf("error parsing config file %q at line %d (%#v): %w", filename, line, record, err)
+			}
+		default:
+			unified := strings.Join(record[1:], " ")
+			if err := flag.Set(record[0], unified); err != nil {
+				line, _ := r.FieldPos(0)
+				return fmt.Errorf("error parsing config file %q at line %d (%#v): %w", filename, line, record, err)
+			}
+		}
+	}
+	return nil
 }
 
 func version() string {
