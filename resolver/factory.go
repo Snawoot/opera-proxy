@@ -1,6 +1,8 @@
 package resolver
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"net"
 	"net/url"
@@ -9,7 +11,7 @@ import (
 	"github.com/ncruces/go-dns"
 )
 
-func FromURL(u string) (*net.Resolver, error) {
+func FromURL(u string, caPool *x509.CertPool) (*net.Resolver, error) {
 begin:
 	parsed, err := url.Parse(u)
 	if err != nil {
@@ -54,7 +56,12 @@ begin:
 			port = "853"
 		}
 		hp := net.JoinHostPort(host, port)
-		return dns.NewDoTResolver(hp, dns.DoTAddresses(hp))
+		return dns.NewDoTResolver(hp,
+			dns.DoTAddresses(hp),
+			dns.DoTConfig(&tls.Config{
+				RootCAs: caPool,
+			}),
+		)
 	default:
 		return nil, errors.New("not implemented")
 	}

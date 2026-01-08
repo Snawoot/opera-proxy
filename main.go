@@ -290,7 +290,7 @@ func run() int {
 		mainLogger.Info("Using fixed API host address = %s", args.apiAddress)
 		seclientDialer = dialer.NewFixedDialer(args.apiAddress, seclientDialer)
 	} else if len(args.bootstrapDNS.values) > 0 {
-		resolver, err := resolver.FastFromURLs(args.bootstrapDNS.values...)
+		resolver, err := resolver.FastFromURLs(caPool, args.bootstrapDNS.values...)
 		if err != nil {
 			mainLogger.Critical("Unable to instantiate DNS resolver: %v", err)
 			return 4
