@@ -99,7 +99,6 @@ eu3.sec-tunnel.com,77.111.244.22,443
 | bind-address | String | proxy listen address (default "127.0.0.1:18080") |
 | bootstrap-dns | String | Comma-separated list of DNS/DoH/DoT resolvers for initial discovery of SurfEasy API address. Supported schemes are: `dns://`, `https://`, `tls://`, `tcp://`. Examples: `https://1.1.1.1/dns-query`, `tls://9.9.9.9:853`  (default `https://1.1.1.3/dns-query,https://8.8.8.8/dns-query,https://dns.google/dns-query,https://security.cloudflare-dns.com/dns-query,https://fidelity.vm-0.com/q,https://wikimedia-dns.org/dns-query,https://dns.adguard-dns.com/dns-query,https://dns.quad9.net/dns-query,https://doh.cleanbrowsing.org/doh/adult-filter/`) |
 | cafile | String | use custom CA certificate bundle file |
-| certchain-workaround | Boolean | add bundled cross-signed intermediate cert to certchain to make it check out on old systems (default true) |
 | config | String | read configuration from file with space-separated keys and values |
 | country | String | desired proxy location (default "EU") |
 | dp-export | - | export configuration for dumbproxy |

@@ -122,7 +122,6 @@ type CLIArgs struct {
 	refreshRetry           time.Duration
 	initRetries            int
 	initRetryInterval      time.Duration
-	certChainWorkaround    bool
 	caFile                 string
 	fakeSNI                string
 	overrideProxyAddress   string
@@ -177,8 +176,6 @@ func parse_args() *CLIArgs {
 	flag.DurationVar(&args.refreshRetry, "refresh-retry", 5*time.Second, "login refresh retry interval")
 	flag.IntVar(&args.initRetries, "init-retries", 0, "number of attempts for initialization steps, zero for unlimited retry")
 	flag.DurationVar(&args.initRetryInterval, "init-retry-interval", 5*time.Second, "delay between initialization retries")
-	flag.BoolVar(&args.certChainWorkaround, "certchain-workaround", true,
-		"add bundled cross-signed intermediate cert to certchain to make it check out on old systems")
 	flag.StringVar(&args.caFile, "cafile", "", "use custom CA certificate bundle file")
 	flag.StringVar(&args.fakeSNI, "fake-SNI", "", "domain name to use as SNI in communications with servers")
 	flag.StringVar(&args.overrideProxyAddress, "override-proxy-address", "", "use fixed proxy address instead of server address returned by SurfEasy API")
@@ -387,7 +384,6 @@ func run() int {
 			func() (string, error) {
 				return dialer.BasicAuthHeader(seclient.GetProxyCredentials()), nil
 			},
-			args.certChainWorkaround,
 			caPool,
 			d)
 	}
