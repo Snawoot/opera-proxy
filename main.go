@@ -31,6 +31,7 @@ import (
 	se "github.com/Snawoot/opera-proxy/seclient"
 
 	_ "golang.org/x/crypto/x509roots/fallback"
+	"golang.org/x/crypto/x509roots/fallback/bundle"
 )
 
 const (
@@ -232,9 +233,8 @@ func run() int {
 		KeepAlive: 30 * time.Second,
 	}
 
-	var caPool *x509.CertPool
+	caPool := x509.NewCertPool()
 	if args.caFile != "" {
-		caPool = x509.NewCertPool()
 		certs, err := ioutil.ReadFile(args.caFile)
 		if err != nil {
 			mainLogger.Error("Can't load CA file: %v", err)
@@ -243,6 +243,19 @@ func run() int {
 		if ok := caPool.AppendCertsFromPEM(certs); !ok {
 			mainLogger.Error("Can't load certificates from CA file")
 			return 15
+		}
+	} else {
+		for c := range bundle.Roots() {
+			cert, err := x509.ParseCertificate(c.Certificate)
+			if err != nil {
+				mainLogger.Error("Unable to parse bundled certificate: %v", err)
+				return 15
+			}
+			if c.Constraint == nil {
+				caPool.AddCert(cert)
+			} else {
+				caPool.AddCertWithConstraint(cert, c.Constraint)
+			}
 		}
 	}
 
