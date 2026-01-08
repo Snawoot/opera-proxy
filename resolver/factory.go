@@ -1,15 +1,19 @@
 package resolver
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"net"
+	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/ncruces/go-dns"
 )
 
-func FromURL(u string) (*net.Resolver, error) {
+func FromURL(u string, caPool *x509.CertPool) (*net.Resolver, error) {
 begin:
 	parsed, err := url.Parse(u)
 	if err != nil {
@@ -48,13 +52,29 @@ begin:
 			parsed.Scheme = "https"
 			u = parsed.String()
 		}
-		return dns.NewDoHResolver(u, dns.DoHAddresses(net.JoinHostPort(host, port)))
+		return dns.NewDoHResolver(u,
+			dns.DoHAddresses(net.JoinHostPort(host, port)),
+			dns.DoHTransport(&http.Transport{
+				MaxIdleConns:        http.DefaultMaxIdleConnsPerHost,
+				IdleConnTimeout:     90 * time.Second,
+				TLSHandshakeTimeout: 10 * time.Second,
+				ForceAttemptHTTP2:   true,
+				TLSClientConfig: &tls.Config{
+					RootCAs: caPool,
+				},
+			}),
+		)
 	case "tls", "dot":
 		if port == "" {
 			port = "853"
 		}
 		hp := net.JoinHostPort(host, port)
-		return dns.NewDoTResolver(hp, dns.DoTAddresses(hp))
+		return dns.NewDoTResolver(hp,
+			dns.DoTAddresses(hp),
+			dns.DoTConfig(&tls.Config{
+				RootCAs: caPool,
+			}),
+		)
 	default:
 		return nil, errors.New("not implemented")
 	}

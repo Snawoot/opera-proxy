@@ -7,7 +7,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -22,34 +21,7 @@ const (
 	PROXY_CONNECT_METHOD       = "CONNECT"
 	PROXY_HOST_HEADER          = "Host"
 	PROXY_AUTHORIZATION_HEADER = "Proxy-Authorization"
-	MISSING_CHAIN_CERT         = `-----BEGIN CERTIFICATE-----
-MIID0zCCArugAwIBAgIQVmcdBOpPmUxvEIFHWdJ1lDANBgkqhkiG9w0BAQwFADB7
-MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYD
-VQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEhMB8GA1UE
-AwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTE5MDMxMjAwMDAwMFoXDTI4
-MTIzMTIzNTk1OVowgYgxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpOZXcgSmVyc2V5
-MRQwEgYDVQQHEwtKZXJzZXkgQ2l0eTEeMBwGA1UEChMVVGhlIFVTRVJUUlVTVCBO
-ZXR3b3JrMS4wLAYDVQQDEyVVU0VSVHJ1c3QgRUNDIENlcnRpZmljYXRpb24gQXV0
-aG9yaXR5MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEGqxUWqn5aCPnetUkb1PGWthL
-q8bVttHmc3Gu3ZzWDGH926CJA7gFFOxXzu5dP+Ihs8731Ip54KODfi2X0GHE8Znc
-JZFjq38wo7Rw4sehM5zzvy5cU7Ffs30yf4o043l5o4HyMIHvMB8GA1UdIwQYMBaA
-FKARCiM+lvEH7OKvKe+CpX/QMKS0MB0GA1UdDgQWBBQ64QmG1M8ZwpZ2dEl23OA1
-xmNjmjAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zARBgNVHSAECjAI
-MAYGBFUdIAAwQwYDVR0fBDwwOjA4oDagNIYyaHR0cDovL2NybC5jb21vZG9jYS5j
-b20vQUFBQ2VydGlmaWNhdGVTZXJ2aWNlcy5jcmwwNAYIKwYBBQUHAQEEKDAmMCQG
-CCsGAQUFBzABhhhodHRwOi8vb2NzcC5jb21vZG9jYS5jb20wDQYJKoZIhvcNAQEM
-BQADggEBABns652JLCALBIAdGN5CmXKZFjK9Dpx1WywV4ilAbe7/ctvbq5AfjJXy
-ij0IckKJUAfiORVsAYfZFhr1wHUrxeZWEQff2Ji8fJ8ZOd+LygBkc7xGEJuTI42+
-FsMuCIKchjN0djsoTI0DQoWz4rIjQtUfenVqGtF8qmchxDM6OW1TyaLtYiKou+JV
-bJlsQ2uRl9EMC5MCHdK8aXdJ5htN978UeAOwproLtOGFfy/cQjutdAFI3tZs4RmY
-CV4Ks2dH/hzg1cEo70qLRDEmBDeNiXQ2Lu+lIg+DdEmSx/cQwgwp+7e9un/jX9Wf
-8qn0dNW44bOwgeThpWOjzOoEeJBuv/c=
------END CERTIFICATE-----
-`
 )
-
-var missingLinkDER, _ = pem.Decode([]byte(MISSING_CHAIN_CERT))
-var missingLink, _ = x509.ParseCertificate(missingLinkDER.Bytes)
 
 type stringCb = func() (string, error)
 
@@ -63,24 +35,22 @@ type ContextDialer interface {
 }
 
 type ProxyDialer struct {
-	address                stringCb
-	tlsServerName          stringCb
-	fakeSNI                stringCb
-	auth                   stringCb
-	next                   ContextDialer
-	intermediateWorkaround bool
-	caPool                 *x509.CertPool
+	address       stringCb
+	tlsServerName stringCb
+	fakeSNI       stringCb
+	auth          stringCb
+	next          ContextDialer
+	caPool        *x509.CertPool
 }
 
-func NewProxyDialer(address, tlsServerName, fakeSNI, auth stringCb, intermediateWorkaround bool, caPool *x509.CertPool, nextDialer ContextDialer) *ProxyDialer {
+func NewProxyDialer(address, tlsServerName, fakeSNI, auth stringCb, caPool *x509.CertPool, nextDialer ContextDialer) *ProxyDialer {
 	return &ProxyDialer{
-		address:                address,
-		tlsServerName:          tlsServerName,
-		fakeSNI:                fakeSNI,
-		auth:                   auth,
-		next:                   nextDialer,
-		intermediateWorkaround: intermediateWorkaround,
-		caPool:                 caPool,
+		address:       address,
+		tlsServerName: tlsServerName,
+		fakeSNI:       fakeSNI,
+		auth:          auth,
+		next:          nextDialer,
+		caPool:        caPool,
 	}
 }
 
@@ -116,7 +86,6 @@ func ProxyDialerFromURL(u *url.URL, next ContextDialer) (*ProxyDialer, error) {
 		WrapStringToCb(tlsServerName),
 		WrapStringToCb(tlsServerName),
 		auth,
-		false,
 		nil,
 		next), nil
 }
@@ -158,16 +127,8 @@ func (d *ProxyDialer) DialContext(ctx context.Context, network, address string) 
 					Intermediates: x509.NewCertPool(),
 					Roots:         d.caPool,
 				}
-				waRequired := false
 				for _, cert := range cs.PeerCertificates[1:] {
 					opts.Intermediates.AddCert(cert)
-					if d.intermediateWorkaround && !waRequired &&
-						bytes.Compare(cert.AuthorityKeyId, missingLink.SubjectKeyId) == 0 {
-						waRequired = true
-					}
-				}
-				if waRequired {
-					opts.Intermediates.AddCert(missingLink)
 				}
 				_, err := cs.PeerCertificates[0].Verify(opts)
 				return err

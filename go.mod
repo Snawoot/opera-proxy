@@ -12,4 +12,7 @@ require (
 	golang.org/x/net v0.48.0
 )
 
-require github.com/hashicorp/errwrap v1.1.0 // indirect
+require (
+	github.com/hashicorp/errwrap v1.1.0 // indirect
+	golang.org/x/crypto/x509roots/fallback v0.0.0-20251210140736-7dacc380ba00 // indirect
+)

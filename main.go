@@ -29,6 +29,9 @@ import (
 	clog "github.com/Snawoot/opera-proxy/log"
 	"github.com/Snawoot/opera-proxy/resolver"
 	se "github.com/Snawoot/opera-proxy/seclient"
+
+	_ "golang.org/x/crypto/x509roots/fallback"
+	"golang.org/x/crypto/x509roots/fallback/bundle"
 )
 
 const (
@@ -119,7 +122,6 @@ type CLIArgs struct {
 	refreshRetry           time.Duration
 	initRetries            int
 	initRetryInterval      time.Duration
-	certChainWorkaround    bool
 	caFile                 string
 	fakeSNI                string
 	overrideProxyAddress   string
@@ -174,8 +176,6 @@ func parse_args() *CLIArgs {
 	flag.DurationVar(&args.refreshRetry, "refresh-retry", 5*time.Second, "login refresh retry interval")
 	flag.IntVar(&args.initRetries, "init-retries", 0, "number of attempts for initialization steps, zero for unlimited retry")
 	flag.DurationVar(&args.initRetryInterval, "init-retry-interval", 5*time.Second, "delay between initialization retries")
-	flag.BoolVar(&args.certChainWorkaround, "certchain-workaround", true,
-		"add bundled cross-signed intermediate cert to certchain to make it check out on old systems")
 	flag.StringVar(&args.caFile, "cafile", "", "use custom CA certificate bundle file")
 	flag.StringVar(&args.fakeSNI, "fake-SNI", "", "domain name to use as SNI in communications with servers")
 	flag.StringVar(&args.overrideProxyAddress, "override-proxy-address", "", "use fixed proxy address instead of server address returned by SurfEasy API")
@@ -230,9 +230,8 @@ func run() int {
 		KeepAlive: 30 * time.Second,
 	}
 
-	var caPool *x509.CertPool
+	caPool := x509.NewCertPool()
 	if args.caFile != "" {
-		caPool = x509.NewCertPool()
 		certs, err := ioutil.ReadFile(args.caFile)
 		if err != nil {
 			mainLogger.Error("Can't load CA file: %v", err)
@@ -241,6 +240,19 @@ func run() int {
 		if ok := caPool.AppendCertsFromPEM(certs); !ok {
 			mainLogger.Error("Can't load certificates from CA file")
 			return 15
+		}
+	} else {
+		for c := range bundle.Roots() {
+			cert, err := x509.ParseCertificate(c.Certificate)
+			if err != nil {
+				mainLogger.Error("Unable to parse bundled certificate: %v", err)
+				return 15
+			}
+			if c.Constraint == nil {
+				caPool.AddCert(cert)
+			} else {
+				caPool.AddCertWithConstraint(cert, c.Constraint)
+			}
 		}
 	}
 
@@ -278,7 +290,7 @@ func run() int {
 		mainLogger.Info("Using fixed API host address = %s", args.apiAddress)
 		seclientDialer = dialer.NewFixedDialer(args.apiAddress, seclientDialer)
 	} else if len(args.bootstrapDNS.values) > 0 {
-		resolver, err := resolver.FastFromURLs(args.bootstrapDNS.values...)
+		resolver, err := resolver.FastFromURLs(caPool, args.bootstrapDNS.values...)
 		if err != nil {
 			mainLogger.Critical("Unable to instantiate DNS resolver: %v", err)
 			return 4
@@ -372,7 +384,6 @@ func run() int {
 			func() (string, error) {
 				return dialer.BasicAuthHeader(seclient.GetProxyCredentials()), nil
 			},
-			args.certChainWorkaround,
 			caPool,
 			d)
 	}

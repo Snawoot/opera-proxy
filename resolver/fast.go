@@ -2,6 +2,7 @@ package resolver
 
 import (
 	"context"
+	"crypto/x509"
 	"fmt"
 	"net/netip"
 
@@ -16,10 +17,10 @@ type FastResolver struct {
 	upstreams []LookupNetIPer
 }
 
-func FastFromURLs(urls ...string) (LookupNetIPer, error) {
+func FastFromURLs(caPool *x509.CertPool, urls ...string) (LookupNetIPer, error) {
 	resolvers := make([]LookupNetIPer, 0, len(urls))
 	for i, u := range urls {
-		res, err := FromURL(u)
+		res, err := FromURL(u, caPool)
 		if err != nil {
 			return nil, fmt.Errorf("unable to construct resolver #%d (%q): %w", i, u, err)
 		}
